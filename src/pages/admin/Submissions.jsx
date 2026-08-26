@@ -201,7 +201,7 @@ export default function Submissions() {
 
                       {/* Batch */}
                       <TCell className="text-steel-600">
-                        {entry?.batch.name ?? <span className="text-steel-300">—</span>}
+                        {entry?.batch.batchCode ?? <span className="text-steel-300">—</span>}
                       </TCell>
 
                       {/* Domain */}

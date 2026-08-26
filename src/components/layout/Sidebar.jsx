@@ -12,6 +12,7 @@ import {
   FileBarChart,
   Settings,
   History,
+  UserCheck,
   X,
 } from "lucide-react";
 import logo from "../../assets/codecelix-logo.png";
@@ -28,6 +29,7 @@ const ADMIN_NAV = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/batches", label: "Batches", icon: Layers },
   { to: "/admin/internees", label: "Internees", icon: Users },
+  { to: "/admin/applications", label: "Applications", icon: UserCheck },
   { to: "/admin/daily-attendance", label: "Daily Attendance", icon: CalendarCheck },
   { to: "/admin/submissions", label: "Submissions", icon: ClipboardList },
   { to: "/admin/monthly-reports", label: "Monthly Reports", icon: FileBarChart },

@@ -52,7 +52,10 @@ export const USERS = [
 export const BATCHES = [
   {
     id: "batch-1",
-    name: "Batch 1",
+    batchCode: "B1-COURSERA-2026",
+    batchNumber: 1,
+    program: "Coursera",
+    year: 2026,
     status: "Active",
     startDate: "2026-03-10",
     endDate: "2026-09-10",
@@ -64,7 +67,10 @@ export const BATCHES = [
   },
   {
     id: "batch-2",
-    name: "Batch 2",
+    batchCode: "B2-COURSERA-2026",
+    batchNumber: 2,
+    program: "Coursera",
+    year: 2026,
     status: "Active",
     startDate: "2026-06-01",
     endDate: "2026-12-01",
@@ -76,7 +82,10 @@ export const BATCHES = [
   },
   {
     id: "batch-3",
-    name: "Batch 3",
+    batchCode: "B3-COURSERA-2026",
+    batchNumber: 3,
+    program: "Coursera",
+    year: 2026,
     status: "Active",
     startDate: "2026-07-15",
     endDate: "2027-01-15",
@@ -87,7 +96,10 @@ export const BATCHES = [
   },
   {
     id: "batch-4",
-    name: "Batch 0 (Pilot Cohort)",
+    batchCode: "B0-COURSERA-2025",
+    batchNumber: 0,
+    program: "Coursera",
+    year: 2025,
     status: "Completed",
     startDate: "2025-11-01",
     endDate: "2026-05-01",

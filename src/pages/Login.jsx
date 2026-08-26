@@ -1,31 +1,105 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Mail, Lock, ShieldCheck, GraduationCap } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Mail, Lock, ShieldCheck, GraduationCap, MailWarning, Clock, XCircle } from "lucide-react";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { useAuth, ROLE_ADMIN, ROLE_INTERNEE } from "../context/AuthContext";
+import { ApiError } from "../lib/api";
 import logo from "../assets/codecelix-logo.png";
 
+// ---------------------------------------------------------------------------
+// Login page — handles three denial states passed via URL params from
+// ProtectedRoute when an internee fails the access gate:
+//
+//   ?reason=unverified  — email not verified
+//   ?reason=pending     — account awaiting admin approval
+//   ?reason=rejected    — application was rejected by admin
+//
+// Also handles backend login errors returned as ApiError with codes:
+//   EMAIL_NOT_VERIFIED, ACCOUNT_PENDING, ACCOUNT_REJECTED
+// ---------------------------------------------------------------------------
+
+const DENIAL_CONFIG = {
+  unverified: {
+    icon: MailWarning,
+    iconBg: "bg-amber-50",
+    iconColor: "text-amber-500",
+    title: "Email not verified",
+    message: (email) =>
+      `Please verify your email address before logging in. We sent a link to ${email}.`,
+    showResend: true,
+  },
+  pending: {
+    icon: Clock,
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-500",
+    title: "Account pending approval",
+    message: () =>
+      "Your account is awaiting administrator approval. You will be able to log in once your account is activated.",
+    showResend: false,
+  },
+  rejected: {
+    icon: XCircle,
+    iconBg: "bg-red-50",
+    iconColor: "text-red-500",
+    title: "Account not approved",
+    message: () =>
+      "Your registration was not approved. Please contact the administrator for more information.",
+    showResend: false,
+  },
+};
+
 export default function Login() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialReason = searchParams.get("reason");
+  const initialEmail = searchParams.get("email") || "";
+
   const [role, setRole] = useState(ROLE_INTERNEE);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { user, login } = useAuth();
+
+  // Denial state (from URL params or backend error)
+  const [denial, setDenial] = useState(initialReason || null);
+  const [denialEmail, setDenialEmail] = useState(initialEmail);
+
+  // Resend verification state
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
+
+  const { user, login, resendVerification } = useAuth();
   const navigate = useNavigate();
 
-  // After login succeeds, user is set in context — navigate to the
-  // correct dashboard based on the actual user role (backend-authoritative).
+  // After login succeeds, navigate to the correct dashboard.
   useEffect(() => {
     if (user) {
       navigate(user.role === ROLE_ADMIN ? "/admin/dashboard" : "/internee/dashboard", { replace: true });
     }
   }, [user, navigate]);
 
+  // Clear denial state when URL params change
+  useEffect(() => {
+    const r = searchParams.get("reason");
+    const e = searchParams.get("email") || "";
+    if (r) {
+      setDenial(r);
+      setDenialEmail(e);
+      if (e && !email) setEmail(e);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function clearDenial() {
+    setDenial(null);
+    setDenialEmail("");
+    setResendMsg("");
+    setSearchParams({}, { replace: true });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    clearDenial();
 
     if (!email || !password) {
       setError("Enter your email and password to continue.");
@@ -34,13 +108,57 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim().toLowerCase(), password);
     } catch (err) {
-      setError(err.message || "Login failed. Please check your credentials.");
+      if (err instanceof ApiError) {
+        switch (err.status) {
+          case 401:
+            setError(err.message || "Invalid email or password.");
+            break;
+          case 403: {
+            // Backend returns { message, code } for internee denial reasons.
+            // error.code is populated by ApiError from the backend response.
+            const code = err.code;
+
+            if (code === "EMAIL_NOT_VERIFIED") {
+              setDenial("unverified");
+              setDenialEmail(email.trim().toLowerCase());
+            } else if (code === "ACCOUNT_PENDING") {
+              setDenial("pending");
+            } else if (code === "ACCOUNT_REJECTED") {
+              setDenial("rejected");
+            } else {
+              // Fallback: treat as unverified (safest default)
+              setDenial("unverified");
+              setDenialEmail(email.trim().toLowerCase());
+            }
+            break;
+          }
+          default:
+            setError(err.message || "Login failed. Please try again.");
+        }
+      } else {
+        setError(err.message || "Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  async function handleResend() {
+    setResendLoading(true);
+    setResendMsg("");
+    try {
+      const data = await resendVerification(denialEmail.trim().toLowerCase());
+      setResendMsg(data.message || "Verification email sent. Check your inbox.");
+    } catch (err) {
+      setResendMsg(err.message || "Failed to resend. Try again later.");
+    } finally {
+      setResendLoading(false);
+    }
+  }
+
+  const denialConfig = denial ? DENIAL_CONFIG[denial] : null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
@@ -54,7 +172,7 @@ export default function Login() {
           <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-steel-100/80 p-1">
             <button
               type="button"
-              onClick={() => setRole(ROLE_INTERNEE)}
+              onClick={() => { setRole(ROLE_INTERNEE); clearDenial(); setError(""); }}
               className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-[13px] font-medium transition-all duration-150 ${
                 role === ROLE_INTERNEE ? "bg-white text-steel-900 shadow-xs" : "text-steel-500 hover:text-steel-700"
               }`}
@@ -63,7 +181,7 @@ export default function Login() {
             </button>
             <button
               type="button"
-              onClick={() => setRole(ROLE_ADMIN)}
+              onClick={() => { setRole(ROLE_ADMIN); clearDenial(); setError(""); }}
               className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-[13px] font-medium transition-all duration-150 ${
                 role === ROLE_ADMIN ? "bg-white text-steel-900 shadow-xs" : "text-steel-500 hover:text-steel-700"
               }`}
@@ -72,31 +190,78 @@ export default function Login() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Email"
-              type="email"
-              icon={Mail}
-              placeholder="you@codecelix.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="username"
-            />
-            <Input
-              label="Password"
-              type="password"
-              icon={Lock}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              error={error}
-            />
-            <Button type="submit" className="w-full" size="lg" loading={loading}>
-              Log in as {role === ROLE_ADMIN ? "Admin" : "Internee"}
-            </Button>
-          </form>
+          {denial && denialConfig ? (
+            <div className="space-y-4">
+              <div className={`rounded-xl p-4 text-center ${denialConfig.iconBg}`}>
+                <denialConfig.icon className={`mx-auto mb-2 h-8 w-8 ${denialConfig.iconColor}`} />
+                <p className="text-[13px] font-medium text-steel-900">{denialConfig.title}</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-steel-600">
+                  {denialConfig.message(denialEmail)}
+                </p>
+              </div>
+
+              {denialConfig.showResend && (
+                <>
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    size="md"
+                    loading={resendLoading}
+                    onClick={handleResend}
+                  >
+                    Resend verification email
+                  </Button>
+
+                  {resendMsg && (
+                    <p className="rounded-lg bg-steel-50 px-3 py-2 text-center text-[12px] text-steel-600">
+                      {resendMsg}
+                    </p>
+                  )}
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={clearDenial}
+                className="w-full text-center text-[13px] font-medium text-steel-500 hover:text-steel-700"
+              >
+                Use a different email
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                label="Email"
+                type="email"
+                icon={Mail}
+                placeholder="you@codecelix.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+              />
+              <Input
+                label="Password"
+                type="password"
+                icon={Lock}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                error={error}
+              />
+              <Button type="submit" className="w-full" size="lg" loading={loading}>
+                Log in as {role === ROLE_ADMIN ? "Admin" : "Internee"}
+              </Button>
+            </form>
+          )}
         </div>
+
+        <p className="mt-5 text-center text-[13px] text-steel-500">
+          Don&apos;t have an account?{" "}
+          <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">
+            Register
+          </Link>
+        </p>
       </div>
     </div>
   );

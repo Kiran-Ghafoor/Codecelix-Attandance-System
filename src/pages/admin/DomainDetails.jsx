@@ -54,7 +54,7 @@ export default function DomainDetails() {
           to={`/admin/batches/${batch.id}`}
           className="inline-flex items-center gap-1.5 text-[13px] font-medium text-steel-500 transition-colors hover:text-brand-700"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to {batch.name}
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to {batch.batchCode}
         </Link>
       </div>
 
@@ -62,7 +62,7 @@ export default function DomainDetails() {
         <h1 className="font-display text-xl font-bold text-steel-900">{domain.name}</h1>
         <p className="mt-1 inline-flex flex-wrap items-center gap-2 text-[13px] text-steel-500">
           <span className="inline-flex items-center gap-1.5">
-            <Layers className="h-3.5 w-3.5 text-steel-400" /> {batch.name}
+            <Layers className="h-3.5 w-3.5 text-steel-400" /> {batch.batchCode}
           </span>
           <span aria-hidden="true">·</span>
           <Badge status={batch.status.toLowerCase()} />

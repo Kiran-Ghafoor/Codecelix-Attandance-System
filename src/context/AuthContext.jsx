@@ -8,16 +8,34 @@ export const ROLE_ADMIN = "admin";
 export const ROLE_INTERNEE = "internee";
 
 // ---------------------------------------------------------------------------
+// Account status constants.
+// ---------------------------------------------------------------------------
+export const STATUS_PENDING = "pending";
+export const STATUS_APPROVED = "approved";
+export const STATUS_REJECTED = "rejected";
+
+// ---------------------------------------------------------------------------
 // Auth context — manages current user, login, logout, and token persistence.
 //
-// Expected backend endpoints (not implemented yet):
-//   POST /auth/login   → { token, user: { id, name, email, role } }
-//   GET  /auth/me      → { user: { id, name, email, role } }
+// The user object MUST contain:
+//   id, name, email, role, emailVerified, status
 //
-// The user object MUST contain: id, name, email, role.
-// Role must be ROLE_ADMIN or ROLE_INTERNEE.
+// Access rules for internees (ALL must pass):
+//   1. Valid credentials
+//   2. emailVerified === true
+//   3. status === "approved"
+//   4. role === "internee"
 //
-// The context exposes { user, login, logout, loading, isAuthenticated }.
+// Denied access reasons:
+//   pending  → status = "pending"  (waiting for admin approval)
+//   rejected → status = "rejected" (application denied by admin)
+//   unverified → emailVerified = false
+//
+// Admins: only role check is enforced. Admin status and email verification
+// are managed separately and not gated by this context.
+//
+// The context exposes:
+//   { user, login, register, verifyEmail, resendVerification, logout, loading, isAuthenticated }
 // ---------------------------------------------------------------------------
 
 const TOKEN_KEY = "auth_token";
@@ -25,7 +43,13 @@ const TOKEN_KEY = "auth_token";
 const AuthContext = createContext(null);
 
 function isValidUser(u) {
-  return u && typeof u.id === "string" && typeof u.name === "string" && typeof u.email === "string" && typeof u.role === "string";
+  return (
+    u &&
+    typeof u.id === "string" &&
+    typeof u.name === "string" &&
+    typeof u.email === "string" &&
+    typeof u.role === "string"
+  );
 }
 
 export function AuthProvider({ children }) {
@@ -63,6 +87,20 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ── Login ───────────────────────────────────────────────────────────────
+  // The backend MUST verify ALL of the following before returning a token:
+  //   1. Credentials are valid (email + password match)
+  //   2. emailVerified === true
+  //   3. status === "approved"
+  //   4. role is set correctly
+  //
+  // If any condition fails, the backend MUST return an error WITHOUT a token:
+  //   401 → invalid credentials
+  //   403 → { message, code: "EMAIL_NOT_VERIFIED" }  — email not verified
+  //   403 → { message, code: "ACCOUNT_PENDING" }     — awaiting approval
+  //   403 → { message, code: "ACCOUNT_REJECTED" }    — application rejected
+  //
+  // The frontend uses the `code` field to show the correct denial screen.
+  // ---------------------------------------------------------------------------
   const login = useCallback(async (email, password) => {
     const data = await apiRequest("/auth/login", {
       method: "POST",
@@ -77,6 +115,38 @@ export function AuthProvider({ children }) {
     setUser(data.user);
   }, []);
 
+  // ── Register ─────────────────────────────────────────────────────────────
+  // Backend MUST:
+  //   1. Hash password with bcrypt/argon2 (NEVER store plain text)
+  //   2. Check email uniqueness → 409 if duplicate
+  //   3. Check CNIC uniqueness → 409 if duplicate
+  //   4. Generate verification token (expires in 24h)
+  //   5. Create user with status="pending", emailVerified=false
+  //   6. Send verification email
+  const register = useCallback(async ({ name, email, password, cnic, phone, batchCode, batchId, domain }) => {
+    const data = await apiRequest("/auth/register", {
+      method: "POST",
+      body: { name, email, password, cnic, phone, batchCode, batchId, domain },
+    });
+
+    return data;
+  }, []);
+
+  // ── Email verification ───────────────────────────────────────────────────
+  const verifyEmail = useCallback(async (token) => {
+    const data = await apiRequest(`/auth/verify-email?token=${encodeURIComponent(token)}`);
+    return data;
+  }, []);
+
+  // ── Resend verification email ────────────────────────────────────────────
+  const resendVerification = useCallback(async (email) => {
+    const data = await apiRequest("/auth/resend-verification", {
+      method: "POST",
+      body: { email },
+    });
+    return data;
+  }, []);
+
   // ── Logout ──────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
@@ -86,7 +156,7 @@ export function AuthProvider({ children }) {
   const isAuthenticated = user !== null;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, login, register, verifyEmail, resendVerification, logout, loading, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

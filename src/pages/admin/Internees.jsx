@@ -170,7 +170,7 @@ export default function Internees() {
                         </span>
                       </TCell>
                       <TCell className="text-steel-400 text-[12px]">{i.email}</TCell>
-                      <TCell className="text-steel-700">{entry?.batch.name ?? batches.find((b) => b.id === i.batchId)?.name ?? "\u2014"}</TCell>
+                      <TCell className="text-steel-700">{entry?.batch.batchCode ?? batches.find((b) => b.id === i.batchId)?.batchCode ?? "\u2014"}</TCell>
                       <TCell className="text-steel-700">{entry?.domain.name ?? <span className="text-steel-400">\u2014</span>}</TCell>
                       <TCell>
                         {leader ? (

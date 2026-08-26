@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Layers, Pencil, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, ChevronRight, Layers, Pencil, Power, UserPlus, Users } from "lucide-react";
 import { Card, CardHeader, StatCard } from "../../components/ui/Card";
 import Avatar from "../../components/ui/Avatar";
 import Badge from "../../components/ui/Badge";
@@ -10,13 +10,13 @@ import BatchFormModal from "../../components/batches/BatchFormModal";
 import InterneeFormModal from "../../components/internees/InterneeFormModal";
 import { useBatches } from "../../context/BatchesContext";
 import { useInternees } from "../../context/InterneesContext";
-import { countBatchInternees, countDomainInternees, getDomainLeader } from "../../lib/mockData";
+import { countBatchInternees, countDomainInternees, getDomainInternees, getDomainLeader } from "../../lib/mockData";
 import { formatDate } from "../../lib/format";
 
 export default function BatchDetails() {
   const { batchId } = useParams();
   const navigate = useNavigate();
-  const { batches, updateBatch } = useBatches();
+  const { batches, updateBatch, toggleBatchStatus, isDuplicateCode } = useBatches();
   const { internees: roster, addInternee } = useInternees();
   const [editOpen, setEditOpen] = useState(false);
   const [addInterneeOpen, setAddInterneeOpen] = useState(false);
@@ -37,6 +37,8 @@ export default function BatchDetails() {
     );
   }
 
+  const isActive = batch.status === "Active";
+
   return (
     <div className="space-y-5">
       <div>
@@ -51,10 +53,11 @@ export default function BatchDetails() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-xl font-bold text-steel-900">{batch.name}</h1>
+            <h1 className="font-display text-xl font-bold text-steel-900">{batch.batchCode}</h1>
             <Badge status={batch.status.toLowerCase()} />
           </div>
           <p className="mt-1 text-[13px] text-steel-500">
+            Batch {batch.batchNumber} &middot; {batch.program} &middot; {batch.year} &middot;{" "}
             {formatDate(batch.startDate)} — {formatDate(batch.endDate)}
           </p>
         </div>
@@ -67,12 +70,20 @@ export default function BatchDetails() {
           <Button variant="secondary" icon={Pencil} onClick={() => setEditOpen(true)}>
             Edit batch
           </Button>
+          <Button
+            variant={isActive ? "danger" : "primary"}
+            icon={Power}
+            onClick={() => toggleBatchStatus(batch.id)}
+          >
+            {isActive ? "Deactivate" : "Activate"}
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Total internees" value={countBatchInternees(batch, roster)} icon={Users} tone="brand" />
         <StatCard label="Total domains" value={batch.domains.length} icon={Layers} tone="steel" />
+        <StatCard label="Batch Code" value={batch.batchCode} icon={Layers} tone="brand" />
       </div>
 
       <Card padded={false}>
@@ -84,6 +95,7 @@ export default function BatchDetails() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {batch.domains.map((domain) => {
                 const leader = getDomainLeader(domain.teamLeaderId, roster);
+                const domainInternees = getDomainInternees(domain.id, roster);
                 return (
                   <Link
                     key={domain.id}
@@ -104,7 +116,7 @@ export default function BatchDetails() {
                     <div className="mt-auto pt-3 border-t border-steel-100">
                       <p className="inline-flex items-center gap-1.5 text-[13px] text-steel-600">
                         <Users className="h-3.5 w-3.5 text-steel-400" />
-                        {countDomainInternees(domain.id, roster)} Internees
+                        {domainInternees.length} Internees
                       </p>
                     </div>
                   </Link>
@@ -132,9 +144,9 @@ export default function BatchDetails() {
         title="Edit batch"
         initial={batch}
         onSubmit={(payload) => updateBatch(batch.id, payload)}
+        isDuplicateCode={isDuplicateCode}
       />
 
-      {/* Onboarding straight into this batch: the batch select is locked to it */}
       <InterneeFormModal
         open={addInterneeOpen}
         onClose={() => setAddInterneeOpen(false)}

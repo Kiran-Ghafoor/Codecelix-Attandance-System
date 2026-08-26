@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, FileText, GitBranch } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye, EyeOff, FileText, GitBranch } from "lucide-react";
 import { Card, CardHeader } from "../../components/ui/Card";
 import { Table, THead, TRow, TCell } from "../../components/ui/Table";
 import Avatar from "../../components/ui/Avatar";
@@ -25,11 +25,19 @@ const SUMMARY_TONES = {
   absent: "text-red-600",
 };
 
+function maskCnic(cnic) {
+  if (!cnic) return "\u2014";
+  const parts = cnic.split("-");
+  if (parts.length !== 3) return cnic;
+  return `${"*".repeat(parts[0].length)}-${"*".repeat(parts[1].length)}-${parts[2]}`;
+}
+
 export default function InterneeDetails() {
   const { interneeId } = useParams();
   const navigate = useNavigate();
   const { batches } = useBatches();
   const { internees: roster } = useInternees();
+  const [showCnic, setShowCnic] = useState(false);
 
   // Resolved against the live roster so manually added internees open too.
   const internee = getInterneeById(interneeId, roster);
@@ -95,7 +103,7 @@ export default function InterneeDetails() {
           </div>
           <div className="p-5 pt-0">
             <div className="divide-y divide-steel-100 rounded-lg border border-steel-200">
-              <DetailRow label="Batch">{batch ? batch.name : "—"}</DetailRow>
+              <DetailRow label="Batch">{batch ? batch.batchCode : "—"}</DetailRow>
               <DetailRow label="Domain">{domain ? domain.name : "—"}</DetailRow>
               <DetailRow label="Team Leader">
                 {leader ? (
@@ -111,7 +119,21 @@ export default function InterneeDetails() {
                 <Badge status={internee.status.toLowerCase()} dot={false} />
               </DetailRow>
               {internee.phone && <DetailRow label="Phone">{internee.phone}</DetailRow>}
-              {internee.cnic && <DetailRow label="CNIC">{internee.cnic}</DetailRow>}
+              {internee.cnic && (
+                <DetailRow label="CNIC">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={showCnic ? "" : "font-mono"}>{showCnic ? internee.cnic : maskCnic(internee.cnic)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCnic((v) => !v)}
+                      className="text-steel-400 transition-colors hover:text-steel-600"
+                      title={showCnic ? "Hide CNIC" : "Show CNIC"}
+                    >
+                      {showCnic ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </span>
+                </DetailRow>
+              )}
               {internee.joinDate && <DetailRow label="Join date">{formatDate(internee.joinDate)}</DetailRow>}
             </div>
           </div>

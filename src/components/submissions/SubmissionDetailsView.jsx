@@ -78,7 +78,7 @@ export default function SubmissionDetailsView({ submission, backTo, backLabel })
                   "—"
                 )}
               </DetailRow>
-              <DetailRow label="Batch">{entry?.batch.name ?? submission.batch ?? "—"}</DetailRow>
+              <DetailRow label="Batch">{entry?.batch.batchCode ?? submission.batch ?? "—"}</DetailRow>
               <DetailRow label="Domain">{entry?.domain.name ?? "—"}</DetailRow>
               <DetailRow label="Team Leader">{leader ? leader.name : <span className="text-steel-400">Unassigned</span>}</DetailRow>
               <DetailRow label="Submission date">{formatDate(submission.date)}</DetailRow>

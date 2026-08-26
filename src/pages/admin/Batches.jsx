@@ -13,7 +13,7 @@ import { countBatchInternees } from "../../lib/mockData";
 import { formatDate } from "../../lib/format";
 
 export default function Batches() {
-  const { batches, createBatch } = useBatches();
+  const { batches, createBatch, isDuplicateCode } = useBatches();
   const { internees: roster } = useInternees();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -34,29 +34,29 @@ export default function Batches() {
         <div className="p-5 pt-0 sm:p-6 sm:pt-0">
           {batches.length > 0 ? (
             <Table>
-              <THead columns={["Batch", "Start date", "End date", "Domains", "Internees", "Status"]} />
+              <THead columns={["Batch Code", "Batch", "Program", "Dates", "Domains", "Internees", "Status"]} />
               <tbody>
                 {batches.map((batch) => (
                   <TRow key={batch.id} className="cursor-pointer" onClick={() => navigate(`/admin/batches/${batch.id}`)}>
+                    <TCell>
+                      <span className="font-display text-[13px] font-bold text-steel-800">{batch.batchCode}</span>
+                    </TCell>
                     <TCell>
                       <Link
                         to={`/admin/batches/${batch.id}`}
                         onClick={(e) => e.stopPropagation()}
                         className="font-medium text-steel-800 hover:text-brand-700"
                       >
-                        {batch.name}
+                        Batch {batch.batchNumber}
                       </Link>
                     </TCell>
                     <TCell>
-                      <span className="inline-flex items-center gap-1.5 text-steel-600">
-                        <CalendarRange className="h-3.5 w-3.5 text-steel-400" />
-                        {formatDate(batch.startDate)}
-                      </span>
+                      <span className="text-steel-600">{batch.program}</span>
                     </TCell>
                     <TCell>
                       <span className="inline-flex items-center gap-1.5 text-steel-600">
                         <CalendarRange className="h-3.5 w-3.5 text-steel-400" />
-                        {formatDate(batch.endDate)}
+                        {formatDate(batch.startDate)} — {formatDate(batch.endDate)}
                       </span>
                     </TCell>
                     <TCell>
@@ -96,6 +96,7 @@ export default function Batches() {
         onClose={() => setOpen(false)}
         title="Create batch"
         onSubmit={(payload) => createBatch(payload)}
+        isDuplicateCode={isDuplicateCode}
       />
     </div>
   );

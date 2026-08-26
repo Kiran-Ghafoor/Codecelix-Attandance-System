@@ -7,15 +7,20 @@
 //
 // Env vars:
 //   VITE_API_URL  — backend base URL (default: http://localhost:5000/api)
+//
+// Backend response contract:
+//   Success → { ...data }
+//   Error   → { message: string, code?: string }  (e.g. code: "EMAIL_NOT_VERIFIED")
 // ---------------------------------------------------------------------------
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export class ApiError extends Error {
-  constructor(status, message) {
+  constructor(status, message, code) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code || null;
   }
 }
 
@@ -43,7 +48,7 @@ export async function apiRequest(endpoint, { method = "GET", body, headers = {},
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(res.status, data.message || `Request failed (${res.status})`);
+    throw new ApiError(res.status, data.message || `Request failed (${res.status})`, data.code);
   }
 
   return data;
