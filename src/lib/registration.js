@@ -2,7 +2,7 @@
 // Registration constants — batch code format, domains, validation patterns.
 //
 // Batch code format:  B{number}-{COURSE}-{YEAR}
-// Example:           B12-COURSERA-2026
+// Example:           B12-CODECELIX-2026
 // ---------------------------------------------------------------------------
 
 export const BATCH_CODE_REGEX = /^B\d{1,3}-[A-Z]{2,20}-\d{4}$/;

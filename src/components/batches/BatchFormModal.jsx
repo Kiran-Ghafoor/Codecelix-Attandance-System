@@ -16,7 +16,7 @@ const STATUS_OPTIONS = [
 
 const PROGRAM_OPTIONS = [
   { value: "", label: "Select program" },
-  { value: "COURSERA", label: "Coursera" },
+  { value: "CODECELIX", label: "Codecelix" },
   { value: "UDEMY", label: "Udemy" },
   { value: "INTERNSHALA", label: "Internshala" },
   { value: "INTERNAL", label: "Internal" },

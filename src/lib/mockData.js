@@ -52,9 +52,9 @@ export const USERS = [
 export const BATCHES = [
   {
     id: "batch-1",
-    batchCode: "B1-COURSERA-2026",
+    batchCode: "B1-CODECELIX-2026",
     batchNumber: 1,
-    program: "Coursera",
+    program: "Codecelix",
     year: 2026,
     status: "Active",
     startDate: "2026-03-10",
@@ -67,9 +67,9 @@ export const BATCHES = [
   },
   {
     id: "batch-2",
-    batchCode: "B2-COURSERA-2026",
+    batchCode: "B2-CODECELIX-2026",
     batchNumber: 2,
-    program: "Coursera",
+    program: "Codecelix",
     year: 2026,
     status: "Active",
     startDate: "2026-06-01",
@@ -82,9 +82,9 @@ export const BATCHES = [
   },
   {
     id: "batch-3",
-    batchCode: "B3-COURSERA-2026",
+    batchCode: "B3-CODECELIX-2026",
     batchNumber: 3,
-    program: "Coursera",
+    program: "Codecelix",
     year: 2026,
     status: "Active",
     startDate: "2026-07-15",
@@ -96,9 +96,9 @@ export const BATCHES = [
   },
   {
     id: "batch-4",
-    batchCode: "B0-COURSERA-2025",
+    batchCode: "B0-CODECELIX-2025",
     batchNumber: 0,
-    program: "Coursera",
+    program: "Codecelix",
     year: 2025,
     status: "Completed",
     startDate: "2025-11-01",
