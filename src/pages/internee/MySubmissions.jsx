@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ExternalLink, Eye, FileText, GitBranch } from "lucide-react";
 import { Card, CardHeader } from "../../components/ui/Card";
@@ -6,21 +6,45 @@ import { Table, THead, TRow, TCell } from "../../components/ui/Table";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import EmptyState from "../../components/ui/EmptyState";
-import { useAuth } from "../../context/AuthContext";
-import { getInterneeSubmissions } from "../../lib/mockData";
+import Skeleton from "../../components/ui/Skeleton";
+import { apiRequest } from "../../lib/api";
 import { formatDate, formatTime } from "../../lib/format";
 
-// Ownership is enforced server-side by the backend using the JWT.
-// The mock layer filters by user.id as a stand-in until the real API.
+// Ownership is enforced server-side by the backend via the JWT —
+// /api/me/submissions only ever returns the authenticated user's own rows.
 export default function MySubmissions() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const submissions = useMemo(() => (user ? getInterneeSubmissions(user.id) : []), [user]);
+  const [submissions, setSubmissions] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await apiRequest("/me/submissions");
+        if (!cancelled) setSubmissions(Array.isArray(data.submissions) ? data.submissions : []);
+      } catch {
+        if (!cancelled) setSubmissions([]);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (submissions === null) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-[320px] w-full rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-steel-500">{submissions.length} submissions on record</p>
+        <p className="text-sm text-steel-500">
+          {submissions.length} submission{submissions.length === 1 ? "" : "s"} on record
+        </p>
       </div>
 
       <Card padded={false}>
@@ -30,11 +54,11 @@ export default function MySubmissions() {
         <div className="p-5 pt-0">
           {submissions.length > 0 ? (
             <Table>
-              <THead columns={["Task / reference", "Date", "Time", "Deadline", "Status", "PDF", "GitHub", "View"]} />
+              <THead columns={["Task / reference", "Date", "Time", "Deadline", "Status", "File", "GitHub", "View"]} />
               <tbody>
                 {submissions.map((s) => (
                   <TRow key={s.id} className="cursor-pointer" onClick={() => navigate(`/internee/submissions/${s.id}`)}>
-                    <TCell className="max-w-[240px] truncate font-medium text-steel-800" >
+                    <TCell className="max-w-[240px] truncate font-medium text-steel-800">
                       <span title={s.taskRef}>{s.taskRef}</span>
                     </TCell>
                     <TCell>{formatDate(s.date)}</TCell>
@@ -43,7 +67,6 @@ export default function MySubmissions() {
                       {formatDate(s.deadline)} · {formatTime(s.deadline)}
                     </TCell>
                     <TCell>
-                      {/* Server-decided attendance; rendered as-is */}
                       <Badge status={s.status === "on-time" ? "present" : s.status} />
                     </TCell>
                     <TCell>

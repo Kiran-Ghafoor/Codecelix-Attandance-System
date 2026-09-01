@@ -9,7 +9,6 @@ import EmptyState from "../../components/ui/EmptyState";
 import BatchFormModal from "../../components/batches/BatchFormModal";
 import { useBatches } from "../../context/BatchesContext";
 import { useInternees } from "../../context/InterneesContext";
-import { countBatchInternees } from "../../lib/mockData";
 import { formatDate } from "../../lib/format";
 
 export default function Batches() {
@@ -17,6 +16,12 @@ export default function Batches() {
   const { internees: roster } = useInternees();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  // Suggest the next batch number for ease of admin. The series starts at
+  // Batch 15, and each new batch defaults to one more than the highest so far.
+  // The admin can still type any other number.
+  const maxBatchNumber = batches.reduce((max, b) => Math.max(max, Number(b.batchNumber) || 0), 14);
+  const nextBatchNumber = maxBatchNumber + 1;
 
   return (
     <div className="space-y-5">
@@ -34,7 +39,7 @@ export default function Batches() {
         <div className="p-5 pt-0 sm:p-6 sm:pt-0">
           {batches.length > 0 ? (
             <Table>
-              <THead columns={["Batch Code", "Batch", "Program", "Dates", "Domains", "Internees", "Status"]} />
+              <THead columns={["Batch Code", "Batch", "Program", "Mode", "Dates", "Domains", "Registration", "Status"]} />
               <tbody>
                 {batches.map((batch) => (
                   <TRow key={batch.id} className="cursor-pointer" onClick={() => navigate(`/admin/batches/${batch.id}`)}>
@@ -54,6 +59,9 @@ export default function Batches() {
                       <span className="text-steel-600">{batch.program}</span>
                     </TCell>
                     <TCell>
+                      <Badge status={(batch.mode || "Onsite").toLowerCase()} />
+                    </TCell>
+                    <TCell>
                       <span className="inline-flex items-center gap-1.5 text-steel-600">
                         <CalendarRange className="h-3.5 w-3.5 text-steel-400" />
                         {formatDate(batch.startDate)} — {formatDate(batch.endDate)}
@@ -65,9 +73,14 @@ export default function Batches() {
                       </span>
                     </TCell>
                     <TCell>
-                      <span className="inline-flex items-center gap-1.5 text-steel-600">
-                        <Users className="h-3.5 w-3.5 text-steel-400" /> {countBatchInternees(batch, roster)}
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="inline-flex items-center gap-1.5 text-steel-600">
+                          <Users className="h-3.5 w-3.5 text-steel-400" /> {(batch.internCount ?? 0)} registered
+                        </span>
+                        <span className="text-[11px] text-steel-400">
+                          {roster.filter((i) => i.batchId === batch.id).length} verified &middot; 0 unverified
+                        </span>
+                      </div>
                     </TCell>
                     <TCell>
                       <Badge status={batch.status.toLowerCase()} />
@@ -97,6 +110,7 @@ export default function Batches() {
         title="Create batch"
         onSubmit={(payload) => createBatch(payload)}
         isDuplicateCode={isDuplicateCode}
+        defaultBatchNumber={nextBatchNumber}
       />
     </div>
   );

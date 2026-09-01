@@ -24,6 +24,15 @@ export function isValidDateString(value) {
   return probe.getFullYear() === year && probe.getMonth() === month - 1 && probe.getDate() === day;
 }
 
+/** Today's calendar date in local time as "YYYY-MM-DD". */
+export function todayISODate() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * Human-readable validation message for a single date field, or null when the
  * value is acceptable. Empty input is only an error when `required`.

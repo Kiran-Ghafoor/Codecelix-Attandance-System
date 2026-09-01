@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, Phone, CreditCard, ArrowLeft, CheckCircle2, MailCheck } from "lucide-react";
+import { User, Mail, Lock, Phone, CreditCard, ArrowLeft, MailCheck, KeyRound } from "lucide-react";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import Button from "../components/ui/Button";
@@ -12,30 +12,29 @@ import logo from "../assets/codecelix-logo.png";
 
 const INITIAL_FORM = {
   name: "",
-  email: "",
-  password: "",
   cnic: "",
+  email: "",
   phone: "",
   batchId: "",
-  domain: "",
+  batchCode: "",
+  domainId: "",
+  domainName: "",
+  password: "",
+  confirmPassword: "",
 };
 
-function validate(form) {
+function validate(form, domainOptions) {
   const errors = {};
 
   if (!form.name.trim()) errors.name = "Full name is required.";
   else if (form.name.trim().length < 2) errors.name = "Name must be at least 2 characters.";
   else if (form.name.trim().length > 100) errors.name = "Name must be at most 100 characters.";
 
-  if (!form.email.trim()) errors.email = "Email is required.";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = "Enter a valid email address.";
-
-  if (!form.password) errors.password = "Password is required.";
-  else if (form.password.length < 6) errors.password = "Password must be at least 6 characters.";
-  else if (form.password.length > 128) errors.password = "Password must be at most 128 characters.";
-
   if (!form.cnic.trim()) errors.cnic = "CNIC is required.";
   else if (!CNIC_REGEX.test(form.cnic.trim())) errors.cnic = "Format: 12345-1234567-1";
+
+  if (!form.email.trim()) errors.email = "Email is required.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = "Enter a valid email address.";
 
   if (!form.phone.trim()) errors.phone = "Contact number is required.";
   else {
@@ -45,7 +44,18 @@ function validate(form) {
 
   if (!form.batchId) errors.batchId = "Select a batch.";
 
-  if (!form.domain) errors.domain = "Domain is required.";
+  // The batch registration code is secret and is validated only by the
+  // backend — the frontend just requires that one was entered.
+  if (!form.batchCode.trim()) errors.batchCode = "Batch registration code is required.";
+
+  if (domainOptions.length > 0 && !form.domainId) errors.domainId = "Select your domain.";
+
+  if (!form.password) errors.password = "Password is required.";
+  else if (form.password.length < 6) errors.password = "Password must be at least 6 characters.";
+  else if (form.password.length > 128) errors.password = "Password must be at most 128 characters.";
+
+  if (!form.confirmPassword) errors.confirmPassword = "Please confirm your password.";
+  else if (form.confirmPassword !== form.password) errors.confirmPassword = "Passwords do not match.";
 
   return errors;
 }
@@ -61,11 +71,6 @@ export default function Register() {
   const { activeBatches } = useBatches();
   const navigate = useNavigate();
 
-  const selectedBatch = useMemo(
-    () => activeBatches.find((b) => b.id === form.batchId) ?? null,
-    [activeBatches, form.batchId]
-  );
-
   const batchOptions = useMemo(
     () => [
       { value: "", label: "Select a batch" },
@@ -74,30 +79,39 @@ export default function Register() {
     [activeBatches]
   );
 
+  const selectedBatch = activeBatches.find((b) => b.id === form.batchId);
+
   const domainOptions = useMemo(() => {
-    if (!selectedBatch) return [{ value: "", label: "Select a domain" }];
-    const unique = [...new Set(selectedBatch.domains.map((d) => d.name))];
+    if (!selectedBatch?.domains?.length) return [];
     return [
-      { value: "", label: "Select a domain" },
-      ...unique.map((name) => ({ value: name, label: name })),
+      { value: "", label: "Select your domain" },
+      ...selectedBatch.domains.map((d) => ({ value: d.id, label: d.name })),
     ];
   }, [selectedBatch]);
 
   function handleChange(e) {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
     if (name === "batchId") {
-      setForm((prev) => ({ ...prev, batchId: value, domain: "" }));
-      if (errors.domain) setErrors((prev) => ({ ...prev, domain: "" }));
+      // Changing the batch resets the previously chosen domain.
+      setForm((prev) => ({ ...prev, batchId: value, domainId: "", domainName: "" }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
     }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  }
+
+  async function handleDomainChange(e) {
+    const value = e.target.value;
+    const domain = selectedBatch?.domains?.find((d) => d.id === value);
+    setForm((prev) => ({ ...prev, domainId: value, domainName: domain?.name || "" }));
+    if (errors.domainId) setErrors((prev) => ({ ...prev, domainId: "" }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setServerError("");
 
-    const validationErrors = validate(form);
+    const validationErrors = validate(form, domainOptions);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -105,16 +119,19 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const batch = activeBatches.find((b) => b.id === form.batchId);
+      const domainName = form.domainName || "";
       await register({
         name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        password: form.password,
         cnic: form.cnic.trim(),
+        email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
-        batchCode: batch.batchCode,
-        batchId: batch.id,
-        domain: form.domain,
+        // Send the code the user actually typed. The backend validates it
+        // against the selected batch's secret registration code.
+        batchCode: form.batchCode.trim(),
+        batchId: form.batchId,
+        domainId: form.domainId,
+        domainName,
+        password: form.password,
       });
       setRegisteredEmail(form.email.trim().toLowerCase());
       setSuccess(true);
@@ -124,8 +141,8 @@ export default function Register() {
       } else {
         setServerError(err.message || "Registration failed. Please try again.");
       }
-      // Clear password on any error for security
-      setForm((prev) => ({ ...prev, password: "" }));
+      // Clear password fields on any error for security
+      setForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
     } finally {
       setLoading(false);
     }
@@ -136,7 +153,7 @@ export default function Register() {
       <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
         <div className="w-full max-w-sm text-center">
           <div className="mb-8 flex flex-col items-center">
-            <img src={logo} alt="CodeCelix" className="h-12 w-auto" />
+            <img src={logo} alt="Attendance System" className="h-12 w-auto" />
           </div>
           <div className="rounded-2xl border border-steel-200/60 bg-white p-8 shadow-card">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-50">
@@ -164,7 +181,7 @@ export default function Register() {
     <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <img src={logo} alt="CodeCelix" className="h-12 w-auto" />
+          <img src={logo} alt="Attendance System" className="h-12 w-auto" />
           <p className="mt-3 text-[13px] text-steel-500">Create your internee account</p>
         </div>
 
@@ -181,6 +198,15 @@ export default function Register() {
               autoComplete="name"
             />
             <Input
+              label="CNIC"
+              name="cnic"
+              icon={CreditCard}
+              placeholder="12345-1234567-1"
+              value={form.cnic}
+              onChange={handleChange}
+              error={errors.cnic}
+            />
+            <Input
               label="Email"
               type="email"
               name="email"
@@ -190,26 +216,6 @@ export default function Register() {
               onChange={handleChange}
               error={errors.email}
               autoComplete="email"
-            />
-            <Input
-              label="Password"
-              type="password"
-              name="password"
-              icon={Lock}
-              placeholder="At least 6 characters"
-              value={form.password}
-              onChange={handleChange}
-              error={errors.password}
-              autoComplete="new-password"
-            />
-            <Input
-              label="CNIC"
-              name="cnic"
-              icon={CreditCard}
-              placeholder="12345-1234567-1"
-              value={form.cnic}
-              onChange={handleChange}
-              error={errors.cnic}
             />
             <Input
               label="Contact Number"
@@ -231,12 +237,44 @@ export default function Register() {
             />
             <Select
               label="Domain"
-              name="domain"
+              name="domainId"
               options={domainOptions}
-              value={form.domain}
+              value={form.domainId}
+              onChange={handleDomainChange}
+              error={errors.domainId}
+              disabled={domainOptions.length === 0}
+            />
+            <Input
+              label="Batch Registration Code"
+              name="batchCode"
+              icon={KeyRound}
+              placeholder="e.g. CODECELIX-12-XXXX"
+              value={form.batchCode}
               onChange={handleChange}
-              error={errors.domain}
-              disabled={!form.batchId}
+              error={errors.batchCode}
+              autoComplete="off"
+            />
+            <Input
+              label="Personal Password"
+              type="password"
+              name="password"
+              icon={Lock}
+              placeholder="At least 6 characters"
+              value={form.password}
+              onChange={handleChange}
+              error={errors.password}
+              autoComplete="new-password"
+            />
+            <Input
+              label="Confirm Password"
+              type="password"
+              name="confirmPassword"
+              icon={Lock}
+              placeholder="Re-enter your password"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              error={errors.confirmPassword}
+              autoComplete="new-password"
             />
 
             {serverError && (

@@ -1,10 +1,11 @@
-export default function Input({ label, error, icon: Icon, className = "", id, ...props }) {
+export default function Input({ label, error, icon: Icon, className = "", id, required, ...props }) {
   const inputId = id || props.name;
   return (
     <div className="w-full">
       {label && (
         <label htmlFor={inputId} className="mb-1.5 block text-[13px] font-medium text-steel-700">
           {label}
+          {required && <span className="ml-0.5 text-red-500">*</span>}
         </label>
       )}
       <div className="relative">

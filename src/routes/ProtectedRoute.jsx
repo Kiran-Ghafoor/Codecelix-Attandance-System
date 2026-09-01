@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { useAuth, ROLE_ADMIN, ROLE_INTERNEE, STATUS_APPROVED } from "../context/AuthContext";
+import { useAuth, ROLE_ADMIN, ROLE_INTERNEE } from "../context/AuthContext";
 
 // ---------------------------------------------------------------------------
 // Loading spinner shown while the stored token is being verified on mount.
@@ -17,26 +17,23 @@ function AuthSpinner() {
 //   1. User is authenticated (token valid)
 //   2. role === "internee"
 //   3. emailVerified === true
-//   4. status === "approved"
 //
-// If any condition fails, the internee is redirected to the appropriate
-// denial page. This is the FRONTEND defense layer — the backend MUST also
-// enforce these checks on every API call. Never rely on the frontend alone.
+// There is no admin approval step; email verification auto-activates the
+// account. If any condition fails, the internee is redirected to login.
+// This is the FRONTEND defense layer — the backend MUST also enforce these
+// checks on every API call. Never rely on the frontend alone.
 // ---------------------------------------------------------------------------
 function checkInterneeAccess(user) {
   if (user.role !== ROLE_INTERNEE) return { allowed: false, redirectTo: "/admin/dashboard" };
   if (!user.emailVerified) return { allowed: false, redirectTo: "/login", reason: "unverified" };
-  if (user.status !== STATUS_APPROVED) {
-    return { allowed: false, redirectTo: "/login", reason: user.status };
-  }
   return { allowed: true };
 }
 
 // ---------------------------------------------------------------------------
 // ProtectedRoute — core guard. Checks authentication and optional role.
 //
-// For admins: role check only (admin status managed separately).
-// For internees: role + emailVerified + status === "approved".
+// For admins: role check only.
+// For internees: role + emailVerified.
 // ---------------------------------------------------------------------------
 export default function ProtectedRoute({ role, children }) {
   const { user, loading } = useAuth();
@@ -52,7 +49,7 @@ export default function ProtectedRoute({ role, children }) {
     return children;
   }
 
-  // ── Internee route — enforce full access gate ─────────────────────────
+  // ── Internee route — enforce access gate ──────────────────────────────
   if (role === ROLE_INTERNEE) {
     if (user.role !== ROLE_INTERNEE) {
       return <Navigate to={user.role === ROLE_ADMIN ? "/admin/dashboard" : "/login"} replace />;
@@ -77,7 +74,6 @@ export default function ProtectedRoute({ role, children }) {
 
 // ---------------------------------------------------------------------------
 // AdminRoute — shorthand for <ProtectedRoute role={ROLE_ADMIN}>.
-// An Internee reaching an admin route is redirected to /internee/dashboard.
 // ---------------------------------------------------------------------------
 export function AdminRoute({ children }) {
   return <ProtectedRoute role={ROLE_ADMIN}>{children}</ProtectedRoute>;
@@ -85,7 +81,6 @@ export function AdminRoute({ children }) {
 
 // ---------------------------------------------------------------------------
 // InterneeRoute — shorthand for <ProtectedRoute role={ROLE_INTERNEE}>.
-// Enforces the full access gate (approved + verified + role).
 // ---------------------------------------------------------------------------
 export function InterneeRoute({ children }) {
   return <ProtectedRoute role={ROLE_INTERNEE}>{children}</ProtectedRoute>;

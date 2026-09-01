@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, Search, SlidersHorizontal, UserPlus, X } from "lucide-react";
+import { Eye, Search, SlidersHorizontal, Trash2, UserPlus, X } from "lucide-react";
 import { Card, CardHeader } from "../../components/ui/Card";
 import { Table, THead, TRow, TCell } from "../../components/ui/Table";
 import Avatar from "../../components/ui/Avatar";
@@ -8,18 +8,25 @@ import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
+import Modal from "../../components/ui/Modal";
 import EmptyState from "../../components/ui/EmptyState";
-import InterneeFormModal from "../../components/internees/InterneeFormModal";
+import Skeleton from "../../components/ui/Skeleton";
+import AddInterneeModal from "../../components/internees/AddInterneeModal";
 import { useBatches } from "../../context/BatchesContext";
 import { useInternees } from "../../context/InterneesContext";
-import { getDomainLeader, buildDomainIndex } from "../../lib/mockData";
+import { buildDomainIndex, getDomainLeader } from "../../lib/relations";
+import { apiRequest } from "../../lib/api";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
   { value: "active", label: "Active" },
-  { value: "warning", label: "At risk" },
-  { value: "completed", label: "Completed" },
+  { value: "pending", label: "Pending" },
+  { value: "rejected", label: "Rejected" },
 ];
+
+function accountStatus(u) {
+  return (u.status ?? "approved").toLowerCase();
+}
 
 function attendanceColor(pct) {
   if (pct >= 90) return "text-emerald-600";
@@ -27,20 +34,45 @@ function attendanceColor(pct) {
   return "text-red-600";
 }
 
+function SkeletonTable() {
+  return (
+    <Table>
+      <THead columns={["Name", "Email", "Batch", "Domain", "Team Leader", "Att. %", "Status", "View"]} />
+      <tbody>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <TRow key={i}>
+            <TCell><Skeleton className="h-7 w-7 rounded-full" /></TCell>
+            <TCell><Skeleton className="h-4 w-28" /></TCell>
+            <TCell><Skeleton className="h-4 w-20" /></TCell>
+            <TCell><Skeleton className="h-4 w-24" /></TCell>
+            <TCell><Skeleton className="h-4 w-20" /></TCell>
+            <TCell><Skeleton className="h-4 w-12" /></TCell>
+            <TCell><Skeleton className="h-5 w-16 rounded-full" /></TCell>
+            <TCell><Skeleton className="h-7 w-16 rounded-lg" /></TCell>
+          </TRow>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
 export default function Internees() {
   const navigate = useNavigate();
   const { batches } = useBatches();
-  const { internees, addInternee } = useInternees();
-  const [addOpen, setAddOpen] = useState(false);
+  const { internees, loading, refresh: refreshInternees } = useInternees();
   const [query, setQuery] = useState("");
   const [batchFilter, setBatchFilter] = useState("all");
   const [domainFilter, setDomainFilter] = useState("all");
   const [leaderFilter, setLeaderFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showAdd, setShowAdd] = useState(false);
+  const [removing, setRemoving] = useState(null); // internee object or null
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState("");
 
   const domainIndex = useMemo(() => buildDomainIndex(batches), [batches]);
 
-  const batchOptions = [{ value: "all", label: "All batches" }, ...batches.map((b) => ({ value: b.id, label: b.name }))];
+  const batchOptions = [{ value: "all", label: "All batches" }, ...batches.map((b) => ({ value: b.id, label: b.batchCode }))];
 
   const visibleDomains = useMemo(
     () =>
@@ -54,7 +86,7 @@ export default function Internees() {
     { value: "all", label: "All domains" },
     ...visibleDomains.map(({ batch: b, domain: d }) => ({
       value: d.id,
-      label: batchFilter === "all" ? `${d.name} (${b.name})` : d.name,
+      label: batchFilter === "all" ? `${d.name} (${b.batchCode})` : d.name,
     })),
   ];
 
@@ -96,6 +128,23 @@ export default function Internees() {
     setLeaderFilter("all");
   }
 
+  async function confirmRemove() {
+    if (!removing) return;
+    setRemoveBusy(true);
+    setRemoveError("");
+    setRemoving((prev) => ({ ...prev, loading: true }));
+    try {
+      await apiRequest(`/internees/${removing.id}`, { method: "DELETE" });
+      setRemoving(null);
+      await refreshInternees();
+    } catch (err) {
+      setRemoveError(err?.message || "Could not remove the internee.");
+      setRemoving((prev) => (prev ? { ...prev, loading: false } : prev));
+    } finally {
+      setRemoveBusy(false);
+    }
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return internees.filter((i) => {
@@ -103,7 +152,7 @@ export default function Internees() {
       const matchesBatch = batchFilter === "all" || i.batchId === batchFilter;
       const matchesDomain = domainFilter === "all" || i.domainId === domainFilter;
       const matchesLeader = leaderFilter === "all" || entry?.domain.teamLeaderId === leaderFilter;
-      const matchesStatus = statusFilter === "all" || i.status.toLowerCase() === statusFilter;
+      const matchesStatus = statusFilter === "all" || accountStatus(i) === statusFilter;
       const matchesQuery = i.name.toLowerCase().includes(q) || i.email.toLowerCase().includes(q);
       return matchesBatch && matchesDomain && matchesLeader && matchesStatus && matchesQuery;
     });
@@ -121,7 +170,7 @@ export default function Internees() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <Button icon={UserPlus} onClick={() => setAddOpen(true)}>
+          <Button icon={UserPlus} onClick={() => setShowAdd(true)}>
             Add internee
           </Button>
         </div>
@@ -154,7 +203,9 @@ export default function Internees() {
           <CardHeader title="Internees" subtitle={`${filtered.length} of ${internees.length} shown`} />
         </div>
         <div className="p-5 pt-0 sm:p-6 sm:pt-0">
-          {filtered.length > 0 ? (
+          {loading ? (
+            <SkeletonTable />
+          ) : filtered.length > 0 ? (
             <Table>
               <THead columns={["Name", "Email", "Batch", "Domain", "Team Leader", "Att. %", "Status", "View"]} />
               <tbody>
@@ -186,20 +237,35 @@ export default function Internees() {
                         <span className={`tabular-nums font-medium ${attendanceColor(i.attendance)}`}>{i.attendance}%</span>
                       </TCell>
                       <TCell>
-                        <Badge status={i.status.toLowerCase()} />
+                        <Badge status={accountStatus(i) === "approved" ? "active" : accountStatus(i)} />
                       </TCell>
                       <TCell>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Eye}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/admin/internees/${i.id}`);
-                          }}
-                        >
-                          View
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={Eye}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/internees/${i.id}`);
+                            }}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            icon={Trash2}
+                            aria-label="Remove internee"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRemoving(i);
+                              setRemoveError("");
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </TCell>
                     </TRow>
                   );
@@ -221,24 +287,50 @@ export default function Internees() {
             <EmptyState
               icon={SlidersHorizontal}
               title="No internees yet"
-              description="Add your first internee to get started."
-              action={
-                <Button icon={UserPlus} onClick={() => setAddOpen(true)}>
-                  Add internee
-                </Button>
-              }
+              description="Internees appear here automatically after they register and verify their email."
             />
           )}
         </div>
       </Card>
 
-      <InterneeFormModal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
+      <AddInterneeModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
         batches={batches}
-        roster={internees}
-        onSubmit={addInternee}
+        onAdded={async () => await refreshInternees()}
       />
+
+      <Modal
+        open={Boolean(removing)}
+        onClose={() => !removeBusy && setRemoving(null)}
+        title="Remove internee"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRemoving(null)} disabled={removeBusy}>
+              Cancel
+            </Button>
+            <Button variant="danger" loading={removeBusy} onClick={confirmRemove}>
+              Remove
+            </Button>
+          </>
+        }
+      >
+        {removing && (
+          <div className="space-y-3">
+            <p className="text-sm text-steel-700">
+              Remove <span className="font-semibold">{removing.name}</span> ({removing.email})?
+            </p>
+            <p className="text-[13px] text-steel-500">
+              This internee will no longer be able to log in or register again. Their attendance and submission history
+              is preserved. You can restore the account later by adding an internee with the same email.
+            </p>
+            {removeError && (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">{removeError}</p>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

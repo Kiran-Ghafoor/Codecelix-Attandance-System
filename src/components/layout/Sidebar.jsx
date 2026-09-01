@@ -12,7 +12,6 @@ import {
   FileBarChart,
   Settings,
   History,
-  UserCheck,
   X,
 } from "lucide-react";
 import logo from "../../assets/codecelix-logo.png";
@@ -29,7 +28,6 @@ const ADMIN_NAV = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/batches", label: "Batches", icon: Layers },
   { to: "/admin/internees", label: "Internees", icon: Users },
-  { to: "/admin/applications", label: "Applications", icon: UserCheck },
   { to: "/admin/daily-attendance", label: "Daily Attendance", icon: CalendarCheck },
   { to: "/admin/submissions", label: "Submissions", icon: ClipboardList },
   { to: "/admin/monthly-reports", label: "Monthly Reports", icon: FileBarChart },
@@ -57,8 +55,11 @@ export default function Sidebar({ role, mobileOpen, onCloseMobile }) {
       >
         {/* Brand */}
         <div className="flex h-[60px] items-center gap-3 border-b border-steel-100 px-5">
-          <img src={logo} alt="CodeCelix" className="h-[26px] w-auto" />
-          <span className="font-display text-[14px] font-bold tracking-tight text-steel-900">CodeCelix</span>
+          <img src={logo} alt="Attendance System" className="h-[26px] w-auto" />
+          <div className="flex flex-col leading-none">
+            <span className="font-display text-[13px] font-bold tracking-tight text-steel-900">Attendance</span>
+            <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.24em] text-brand-600">System</span>
+          </div>
           <button
             className="ml-auto rounded-lg p-1.5 text-steel-400 transition-colors hover:bg-steel-100 hover:text-steel-600 lg:hidden"
             onClick={onCloseMobile}

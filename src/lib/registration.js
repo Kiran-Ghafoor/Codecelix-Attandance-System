@@ -7,16 +7,10 @@
 
 export const BATCH_CODE_REGEX = /^B\d{1,3}-[A-Z]{2,20}-\d{4}$/;
 
-export const AVAILABLE_DOMAINS = [
-  { value: "ai", label: "Artificial Intelligence" },
-  { value: "web", label: "Web Development" },
-  { value: "cyber", label: "Cyber Security" },
-  { value: "mobile", label: "Mobile Development" },
-  { value: "data", label: "Data Science" },
-  { value: "cloud", label: "Cloud Computing" },
-  { value: "devops", label: "DevOps" },
-  { value: "uiux", label: "UI/UX Design" },
-];
+// Fixed set of domains that every batch is created with. Batch creation
+// auto-creates exactly these domains, and a registering internee picks one of
+// them from a dropdown. Multiple domains can coexist within a single batch.
+export const FIXED_DOMAINS = ["UI/UX", "AI", "App Development", "Web Development"];
 
 // CNIC format:  12345-1234567-1  (5 digits – 7 digits – 1 digit)
 export const CNIC_REGEX = /^\d{5}-\d{7}-\d$/;

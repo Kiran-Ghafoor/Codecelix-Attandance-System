@@ -13,6 +13,8 @@ const STATUS_MAP = {
   rejected: { label: "Rejected", tone: "red" },
   excused: { label: "Excused", tone: "blue" },
   off: { label: "Off", tone: "steel" },
+  online: { label: "Online", tone: "blue" },
+  onsite: { label: "Onsite", tone: "brand" },
   submitted: { label: "Submitted", tone: "green" },
   completed: { label: "Completed", tone: "steel" },
   info: { label: "Info", tone: "blue" },

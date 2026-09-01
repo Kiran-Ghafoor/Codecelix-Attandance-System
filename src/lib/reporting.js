@@ -3,16 +3,14 @@
 //
 // These helpers aggregate server-decided attendance statuses into the numbers
 // an admin sees on screen. They never derive a status — that remains backend
-// authority. The future backend will compute the same aggregates (and the
-// Excel workbook) from stored records; keeping the math here small and pure
-// makes swapping in API responses straightforward.
+// authority. The backend computes the same aggregates (and the Excel workbook)
+// from stored records; keeping the math here small and pure makes swapping in
+// API responses straightforward.
 //
-// Attendance % semantics used by the preview:
-//   - "late" still counts as attended (it is flagged, not penalized)
-//   - "excused" days are excluded from the denominator entirely
-//   - "off" days (weekends) are excluded from the denominator entirely
-//   - "pending" rows are excluded until the server finalizes the day
-//   - percent = round((present + late) / (days - excused - off) * 100)
+// Attendance % semantics:
+//   - attendance is binary: present or absent
+//   - "off" (weekend) and "pending" rows are excluded from the denominator
+//   - percent = round(present / working-days * 100)
 // ---------------------------------------------------------------------------
 
 export const MONTH_NAMES = [
@@ -37,19 +35,19 @@ export function weekdayLabel(date) {
 }
 
 export function countByStatus(records) {
-  const counts = { present: 0, late: 0, absent: 0, excused: 0, pending: 0, off: 0 };
+  const counts = { present: 0, absent: 0, pending: 0, off: 0 };
   for (const r of records) {
     if (r.status in counts) counts[r.status] += 1;
   }
   return counts;
 }
 
-// Returns null when there is no meaningful denominator (e.g. everyone excused
-// or off) so callers can render an em-dash instead of a fake zero.
+// Returns null when there is no meaningful denominator (e.g. no working days)
+// so callers can render an em-dash instead of a fake zero.
 export function attendancePercent(counts, totalDays) {
-  const denominator = totalDays - counts.excused - counts.off;
-  if (denominator <= 0) return null;
-  return Math.round(((counts.present + counts.late) / denominator) * 100);
+  const denominator = totalDays - counts.off;
+  if (!denominator || denominator <= 0) return null;
+  return Math.round((counts.present / denominator) * 100);
 }
 
 export function averagePercent(percents) {

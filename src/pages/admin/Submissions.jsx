@@ -11,20 +11,21 @@ import Select from "../../components/ui/Select";
 import EmptyState from "../../components/ui/EmptyState";
 import Skeleton from "../../components/ui/Skeleton";
 import { useBatches } from "../../context/BatchesContext";
-import { SUBMISSIONS, getInterneeById, buildDomainIndex } from "../../lib/mockData";
-import { formatDate, formatTime } from "../../lib/format";
+import { useInternees } from "../../context/InterneesContext";
+import { apiRequest } from "../../lib/api";
+import { buildDomainIndex, getInterneeById } from "../../lib/relations";
+import { formatTime } from "../../lib/format";
 import { isValidDateString } from "../../lib/dateUtils";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
   { value: "on-time", label: "On time" },
-  { value: "late", label: "Late" },
-  { value: "missing", label: "Missing" },
 ];
 
 function entryFor(submission, domainIndex) {
   return (
-    domainIndex.get(submission.domainId) ?? domainIndex.get(getInterneeById(submission.interneeId)?.domainId)
+    domainIndex.get(submission.domainId) ??
+    domainIndex.get(getInterneeById(submission.interneeId)?.domainId)
   );
 }
 
@@ -38,8 +39,6 @@ function repoFromUrl(url) {
 
 const ROW_TINT = {
   "on-time": "bg-emerald-50/50",
-  late: "bg-amber-50/50",
-  missing: "bg-red-50/40",
 };
 
 function SkeletonTable() {
@@ -72,21 +71,18 @@ function SkeletonTable() {
 export default function Submissions() {
   const navigate = useNavigate();
   const { batches } = useBatches();
+  const { internees: roster } = useInternees();
   const [batchFilter, setBatchFilter] = useState("all");
   const [domainFilter, setDomainFilter] = useState("all");
   const [interneeFilter, setInterneeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 400);
-    return () => clearTimeout(id);
-  }, []);
 
   const domainIndex = useMemo(() => buildDomainIndex(batches), [batches]);
 
-  const batchOptions = [{ value: "all", label: "All batches" }, ...batches.map((b) => ({ value: b.id, label: b.name }))];
+  const batchOptions = [{ value: "all", label: "All batches" }, ...batches.map((b) => ({ value: b.id, label: b.batchCode }))];
 
   const visibleDomains = useMemo(
     () =>
@@ -100,21 +96,19 @@ export default function Submissions() {
     { value: "all", label: "All domains" },
     ...visibleDomains.map(({ batch: b, domain: d }) => ({
       value: d.id,
-      label: batchFilter === "all" ? `${d.name} (${b.name})` : d.name,
+      label: batchFilter === "all" ? `${d.name} (${b.batchCode})` : d.name,
     })),
   ];
 
-  const interneeOptions = useMemo(() => {
-    const authors = new Map();
-    SUBMISSIONS.forEach((s) => {
-      const internee = getInterneeById(s.interneeId);
-      if (internee && !authors.has(internee.id)) authors.set(internee.id, internee);
-    });
-    return [
+  const interneeOptions = useMemo(
+    () => [
       { value: "all", label: "All internees" },
-      ...[...authors.values()].sort((a, b) => a.name.localeCompare(b.name)).map((i) => ({ value: i.id, label: i.name })),
-    ];
-  }, []);
+      ...[...roster]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((i) => ({ value: i.id, label: i.name })),
+    ],
+    [roster],
+  );
 
   function handleBatchChange(event) {
     setBatchFilter(event.target.value);
@@ -131,17 +125,32 @@ export default function Submissions() {
     setStatusFilter("all");
   }
 
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (batchFilter !== "all") params.set("batchId", batchFilter);
+      if (domainFilter !== "all") params.set("domainId", domainFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (dateFilter && isValidDateString(dateFilter)) params.set("date", dateFilter);
+      const qs = params.toString();
+      try {
+        const data = await apiRequest(`/submissions${qs ? `?${qs}` : ""}`);
+        if (!cancelled) setSubmissions(Array.isArray(data.submissions) ? data.submissions : []);
+      } catch {
+        if (!cancelled) setSubmissions([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [batchFilter, domainFilter, statusFilter, dateFilter]);
+
   const filtered = useMemo(() => {
-    return SUBMISSIONS.filter((s) => {
-      const entry = entryFor(s, domainIndex);
-      const matchesBatch = batchFilter === "all" || entry?.batch.id === batchFilter;
-      const matchesDomain = domainFilter === "all" || s.domainId === domainFilter;
-      const matchesInternee = interneeFilter === "all" || s.interneeId === interneeFilter;
-      const matchesDate = !dateFilter || (isValidDateString(dateFilter) && s.date === dateFilter);
-      const matchesStatus = statusFilter === "all" || s.status === statusFilter;
-      return matchesBatch && matchesDomain && matchesInternee && matchesDate && matchesStatus;
-    });
-  }, [batchFilter, domainFilter, interneeFilter, dateFilter, statusFilter, domainIndex]);
+    return submissions.filter((s) => interneeFilter === "all" || s.interneeId === interneeFilter);
+  }, [submissions, interneeFilter]);
 
   return (
     <div className="space-y-5">
@@ -173,7 +182,7 @@ export default function Submissions() {
       {/* ── Table ───────────────────────────────────────────────── */}
       <Card padded={false}>
         <div className="px-5 pt-5 pb-0 sm:px-6">
-          <CardHeader title="Submissions" subtitle={`${filtered.length} of ${SUBMISSIONS.length} shown`} />
+          <CardHeader title="Submissions" subtitle={`${filtered.length} of ${submissions.length} shown`} />
         </div>
         <div className="p-5 pt-0 sm:p-6 sm:pt-0">
           {loading ? (
@@ -183,7 +192,7 @@ export default function Submissions() {
               <THead columns={["Internee", "Batch", "Domain", "Task", "Submission", "Submitted", "Status", "Review"]} />
               <tbody>
                 {filtered.map((s) => {
-                  const internee = getInterneeById(s.interneeId);
+                  const internee = findInternee(s, roster);
                   const entry = entryFor(s, domainIndex);
                   return (
                     <TRow
@@ -195,13 +204,13 @@ export default function Submissions() {
                       <TCell>
                         <span className="inline-flex items-center gap-2.5">
                           {internee && <Avatar person={internee} />}
-                          <span className="font-medium text-steel-800">{internee?.name ?? "Unknown"}</span>
+                          <span className="font-medium text-steel-800">{s.internee ?? internee?.name ?? "Unknown"}</span>
                         </span>
                       </TCell>
 
                       {/* Batch */}
                       <TCell className="text-steel-600">
-                        {entry?.batch.batchCode ?? <span className="text-steel-300">—</span>}
+                        {s.batch ?? entry?.batch.batchCode ?? <span className="text-steel-300">—</span>}
                       </TCell>
 
                       {/* Domain */}
@@ -222,7 +231,7 @@ export default function Submissions() {
                           <span className="inline-flex items-center gap-1.5 text-[12px]">
                             <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-inset ring-red-600/10">
                               <FileText className="h-3 w-3" strokeWidth={2} />
-                              PDF
+                              File
                             </span>
                             <span className="hidden truncate text-steel-500 sm:inline" title={s.fileName}>
                               {s.fileName}
@@ -306,4 +315,9 @@ export default function Submissions() {
       </Card>
     </div>
   );
+}
+
+function findInternee(s, roster) {
+  if (!s) return null;
+  return getInterneeById(s.interneeId, roster);
 }

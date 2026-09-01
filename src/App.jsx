@@ -2,12 +2,13 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { BatchesProvider } from "./context/BatchesContext";
 import { InterneesProvider } from "./context/InterneesContext";
-import { ApplicationsProvider } from "./context/ApplicationsContext";
 import { AdminRoute, InterneeRoute } from "./routes/ProtectedRoute";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 import InterneeDashboard from "./pages/internee/Dashboard";
 import SubmitTask from "./pages/internee/SubmitTask";
@@ -29,7 +30,6 @@ import MonthlyReports from "./pages/admin/MonthlyReports";
 import AttendanceSettings from "./pages/admin/AttendanceSettings";
 import ActivityLog from "./pages/admin/ActivityLog";
 import AdminProfile from "./pages/admin/Profile";
-import Applications from "./pages/admin/Applications";
 
 export default function App() {
   return (
@@ -40,6 +40,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route
             path="/internee"
@@ -62,9 +64,7 @@ export default function App() {
               element={
                 <AdminRoute>
                     <InterneesProvider>
-                      <ApplicationsProvider>
                         <DashboardLayout />
-                      </ApplicationsProvider>
                     </InterneesProvider>
                 </AdminRoute>
               }
@@ -75,7 +75,6 @@ export default function App() {
             <Route path="batches/:batchId/domains/:domainId" element={<DomainDetails />} />
             <Route path="internees" element={<Internees />} />
             <Route path="internees/:interneeId" element={<InterneeDetails />} />
-            <Route path="applications" element={<Applications />} />
             <Route path="daily-attendance" element={<DailyAttendance />} />
             <Route path="submissions" element={<Submissions />} />
             <Route path="submissions/:submissionId" element={<AdminSubmissionDetails />} />

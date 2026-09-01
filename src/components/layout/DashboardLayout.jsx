@@ -26,7 +26,7 @@ function resolveTitle(pathname) {
   if (/^\/admin\/batches\/[^/]+$/.test(pathname)) return "Batch Details";
   if (/^\/admin\/internees\/[^/]+$/.test(pathname)) return "Internee Details";
   if (/^\/(?:internee|admin)\/submissions\/[^/]+$/.test(pathname)) return "Submission Details";
-  return TITLES[pathname] || "CodeCelix";
+  return TITLES[pathname] || "Attendance System";
 }
 
 export default function DashboardLayout() {

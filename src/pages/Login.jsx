@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Mail, Lock, ShieldCheck, GraduationCap, MailWarning, Clock, XCircle } from "lucide-react";
+import { Mail, Lock, ShieldCheck, GraduationCap, MailWarning } from "lucide-react";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { useAuth, ROLE_ADMIN, ROLE_INTERNEE } from "../context/AuthContext";
@@ -8,15 +8,10 @@ import { ApiError } from "../lib/api";
 import logo from "../assets/codecelix-logo.png";
 
 // ---------------------------------------------------------------------------
-// Login page — handles three denial states passed via URL params from
-// ProtectedRoute when an internee fails the access gate:
+// Login page — handles the email-not-verified denial state (via URL param
+// from ProtectedRoute, or a backend 403 with code EMAIL_NOT_VERIFIED).
 //
-//   ?reason=unverified  — email not verified
-//   ?reason=pending     — account awaiting admin approval
-//   ?reason=rejected    — application was rejected by admin
-//
-// Also handles backend login errors returned as ApiError with codes:
-//   EMAIL_NOT_VERIFIED, ACCOUNT_PENDING, ACCOUNT_REJECTED
+//   ?reason=unverified  — email not verified (verify email, then log in)
 // ---------------------------------------------------------------------------
 
 const DENIAL_CONFIG = {
@@ -28,24 +23,6 @@ const DENIAL_CONFIG = {
     message: (email) =>
       `Please verify your email address before logging in. We sent a link to ${email}.`,
     showResend: true,
-  },
-  pending: {
-    icon: Clock,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-500",
-    title: "Account pending approval",
-    message: () =>
-      "Your account is awaiting administrator approval. You will be able to log in once your account is activated.",
-    showResend: false,
-  },
-  rejected: {
-    icon: XCircle,
-    iconBg: "bg-red-50",
-    iconColor: "text-red-500",
-    title: "Account not approved",
-    message: () =>
-      "Your registration was not approved. Please contact the administrator for more information.",
-    showResend: false,
   },
 };
 
@@ -116,17 +93,11 @@ export default function Login() {
             setError(err.message || "Invalid email or password.");
             break;
           case 403: {
-            // Backend returns { message, code } for internee denial reasons.
-            // error.code is populated by ApiError from the backend response.
-            const code = err.code;
-
-            if (code === "EMAIL_NOT_VERIFIED") {
+            // Backend returns { message, code } — only EMAIL_NOT_VERIFIED
+            // applies in this flow (no admin approval step).
+            if (err.code === "EMAIL_NOT_VERIFIED") {
               setDenial("unverified");
               setDenialEmail(email.trim().toLowerCase());
-            } else if (code === "ACCOUNT_PENDING") {
-              setDenial("pending");
-            } else if (code === "ACCOUNT_REJECTED") {
-              setDenial("rejected");
             } else {
               // Fallback: treat as unverified (safest default)
               setDenial("unverified");
@@ -164,7 +135,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src={logo} alt="CodeCelix" className="h-12 w-auto" />
+          <img src={logo} alt="Attendance System" className="h-12 w-auto" />
           <p className="mt-3 text-[13px] text-steel-500">Internee Task &amp; Attendance System</p>
         </div>
 
@@ -249,6 +220,14 @@ export default function Login() {
                 autoComplete="current-password"
                 error={error}
               />
+              <div className="flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-[12px] font-medium text-brand-600 hover:text-brand-700"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <Button type="submit" className="w-full" size="lg" loading={loading}>
                 Log in as {role === ROLE_ADMIN ? "Admin" : "Internee"}
               </Button>

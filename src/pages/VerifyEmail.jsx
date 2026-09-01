@@ -68,7 +68,7 @@ export default function VerifyEmail() {
       <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
         <div className="w-full max-w-sm text-center">
           <div className="mb-8 flex flex-col items-center">
-            <img src={logo} alt="CodeCelix" className="h-12 w-auto" />
+            <img src={logo} alt="Attendance System" className="h-12 w-auto" />
           </div>
           <div className="rounded-2xl border border-steel-200/60 bg-white p-8 shadow-card">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-600" />
@@ -85,7 +85,7 @@ export default function VerifyEmail() {
       <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
         <div className="w-full max-w-sm text-center">
           <div className="mb-8 flex flex-col items-center">
-            <img src={logo} alt="CodeCelix" className="h-12 w-auto" />
+            <img src={logo} alt="Attendance System" className="h-12 w-auto" />
           </div>
           <div className="rounded-2xl border border-steel-200/60 bg-white p-8 shadow-card">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
@@ -93,7 +93,7 @@ export default function VerifyEmail() {
             </div>
             <h2 className="font-display text-[17px] font-bold text-steel-900">Email verified</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-steel-500">
-              Your email has been verified successfully. An administrator will review and activate your account. You will be able to log in once approved.
+              Your email has been verified successfully. You can now log in to your account.
             </p>
             <Button className="mt-6 w-full" size="lg" onClick={() => (window.location.href = "/login")}>
               Go to login
@@ -109,7 +109,7 @@ export default function VerifyEmail() {
     <div className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src={logo} alt="CodeCelix" className="h-12 w-auto" />
+          <img src={logo} alt="Attendance System" className="h-12 w-auto" />
         </div>
 
         <div className="rounded-2xl border border-steel-200/60 bg-white p-8 shadow-card">

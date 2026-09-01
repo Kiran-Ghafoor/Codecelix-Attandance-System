@@ -8,7 +8,7 @@ import Button from "../../components/ui/Button";
 import EmptyState from "../../components/ui/EmptyState";
 import { useBatches } from "../../context/BatchesContext";
 import { useInternees } from "../../context/InterneesContext";
-import { getDomainInternees, getDomainLeader } from "../../lib/mockData";
+import { getDomainLeader } from "../../lib/relations";
 
 export default function DomainDetails() {
   const { batchId, domainId } = useParams();
@@ -19,7 +19,7 @@ export default function DomainDetails() {
   const batch = batches.find((b) => b.id === batchId);
   const domain = batch?.domains.find((d) => d.id === domainId);
 
-  const internees = domain ? getDomainInternees(domain.id, roster) : [];
+  const internees = domain ? roster.filter((i) => i.domainId === domain.id) : [];
   const leader = getDomainLeader(domain?.teamLeaderId, roster);
 
   if (!batch || !domain) {
@@ -110,7 +110,7 @@ export default function DomainDetails() {
                     <TCell className="text-steel-500">{internee.email}</TCell>
                     <TCell>{internee.attendance}%</TCell>
                     <TCell>
-                      <Badge status={internee.status.toLowerCase()} />
+                      <Badge status={(internee.status ?? "approved").toLowerCase() === "approved" ? "active" : (internee.status ?? "").toLowerCase()} />
                     </TCell>
                     <TCell>
                       <Button

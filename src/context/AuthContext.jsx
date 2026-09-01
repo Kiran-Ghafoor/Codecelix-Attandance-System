@@ -8,37 +8,32 @@ export const ROLE_ADMIN = "admin";
 export const ROLE_INTERNEE = "internee";
 
 // ---------------------------------------------------------------------------
-// Account status constants.
-// ---------------------------------------------------------------------------
-export const STATUS_PENDING = "pending";
-export const STATUS_APPROVED = "approved";
-export const STATUS_REJECTED = "rejected";
-
-// ---------------------------------------------------------------------------
-// Auth context — manages current user, login, logout, and token persistence.
+// Auth context — manages current user, login, logout, and session restore.
+//
+// Authentication is handled by the backend via an httpOnly JWT cookie. The
+// frontend NEVER stores, reads, or sends a JWT; the browser attaches the
+// cookie to every request (see apiRequest's `credentials: "include"`).
 //
 // The user object MUST contain:
-//   id, name, email, role, emailVerified, status
+//   id, name, email, role, emailVerified
 //
 // Access rules for internees (ALL must pass):
 //   1. Valid credentials
 //   2. emailVerified === true
-//   3. status === "approved"
-//   4. role === "internee"
+//   3. role === "internee"
 //
-// Denied access reasons:
-//   pending  → status = "pending"  (waiting for admin approval)
-//   rejected → status = "rejected" (application denied by admin)
-//   unverified → emailVerified = false
+// NOTE: Email verification auto-activates the account. There is NO admin
+// approval step in this flow — after verifying their email the internee can
+// log in immediately.
 //
-// Admins: only role check is enforced. Admin status and email verification
-// are managed separately and not gated by this context.
+// Denied access reason:
+//   unverified → emailVerified = false  (verify email first, then log in)
+//
+// Admins: only role check is enforced.
 //
 // The context exposes:
 //   { user, login, register, verifyEmail, resendVerification, logout, loading, isAuthenticated }
 // ---------------------------------------------------------------------------
-
-const TOKEN_KEY = "auth_token";
 
 const AuthContext = createContext(null);
 
@@ -56,27 +51,21 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ── Verify stored token on mount ────────────────────────────────────────
+  // ── Restore session on mount ────────────────────────────────────────────
+  // Ask /auth/me for the current user. The httpOnly JWT cookie authenticates
+  // the request automatically. If there is no valid session (no cookie, or an
+  // expired/unverifiable one) the backend returns 401 and we stay logged out.
   useEffect(() => {
     let cancelled = false;
 
     async function verifySession() {
-      const token = localStorage.getItem(TOKEN_KEY);
-
-      if (!token) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
-
       try {
-        const data = await apiRequest("/auth/me", { token });
+        const data = await apiRequest("/auth/me");
         if (!cancelled && isValidUser(data.user)) {
           setUser(data.user);
-        } else {
-          localStorage.removeItem(TOKEN_KEY);
         }
       } catch {
-        localStorage.removeItem(TOKEN_KEY);
+        // Unauthenticated/expired session — leave user as null.
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -87,46 +76,37 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ── Login ───────────────────────────────────────────────────────────────
-  // The backend MUST verify ALL of the following before returning a token:
-  //   1. Credentials are valid (email + password match)
-  //   2. emailVerified === true
-  //   3. status === "approved"
-  //   4. role is set correctly
+  // The backend verifies credentials and sets the httpOnly JWT cookie. The
+  // frontend then re-hydrates the user from /auth/me so it never depends on a
+  // token in the response body.
   //
-  // If any condition fails, the backend MUST return an error WITHOUT a token:
+  // Denial reasons surfaced by the backend via ApiError `code`:
   //   401 → invalid credentials
   //   403 → { message, code: "EMAIL_NOT_VERIFIED" }  — email not verified
-  //   403 → { message, code: "ACCOUNT_PENDING" }     — awaiting approval
-  //   403 → { message, code: "ACCOUNT_REJECTED" }    — application rejected
-  //
-  // The frontend uses the `code` field to show the correct denial screen.
   // ---------------------------------------------------------------------------
   const login = useCallback(async (email, password) => {
-    const data = await apiRequest("/auth/login", {
+    // 1. Authenticate — the backend sets the session cookie on success.
+    await apiRequest("/auth/login", {
       method: "POST",
       body: { email, password },
     });
 
+    // 2. Hydrate user state from /auth/me using the cookie just set.
+    const data = await apiRequest("/auth/me");
     if (!isValidUser(data.user)) {
       throw new Error("Invalid user data received from server.");
     }
-
-    localStorage.setItem(TOKEN_KEY, data.token);
     setUser(data.user);
   }, []);
 
   // ── Register ─────────────────────────────────────────────────────────────
-  // Backend MUST:
-  //   1. Hash password with bcrypt/argon2 (NEVER store plain text)
-  //   2. Check email uniqueness → 409 if duplicate
-  //   3. Check CNIC uniqueness → 409 if duplicate
-  //   4. Generate verification token (expires in 24h)
-  //   5. Create user with status="pending", emailVerified=false
-  //   6. Send verification email
-  const register = useCallback(async ({ name, email, password, cnic, phone, batchCode, batchId, domain }) => {
+  // Sends registration details. Registration does NOT establish a session;
+  // the user must verify their email (which auto-activates the account) and
+  // then log in.
+  const register = useCallback(async ({ name, cnic, email, phone, batchCode, batchId, domainId, domainName, password }) => {
     const data = await apiRequest("/auth/register", {
       method: "POST",
-      body: { name, email, password, cnic, phone, batchCode, batchId, domain },
+      body: { name, cnic, email, phone, batchCode, batchId, domainId, domainName, password },
     });
 
     return data;
@@ -147,16 +127,60 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
-  // ── Logout ──────────────────────────────────────────────────────────────
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    setUser(null);
+  // ── Forgot password (request reset link) ─────────────────────────────────
+  const forgotPassword = useCallback(async (email) => {
+    const data = await apiRequest("/auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+    return data;
+  }, []);
+
+  // ── Reset password (consumes the emailed one-time token) ─────────────────
+  const resetPassword = useCallback(async (token, password) => {
+    const data = await apiRequest("/auth/reset-password", {
+      method: "POST",
+      body: { token, password },
+    });
+    return data;
+  }, []);
+
+  // ── Logout ───────────────────────────────────────────────────────────────
+  // Tell the backend to invalidate the session (clear the httpOnly cookie).
+  // Then reset local state; the caller is responsible for redirecting.
+  const logout = useCallback(async () => {
+    try {
+      await apiRequest("/auth/logout", { method: "POST" });
+    } catch {
+      // Even if the backend call fails (e.g. network), still clear local state.
+    } finally {
+      setUser(null);
+    }
+  }, []);
+
+  // ── Update own email ─────────────────────────────────────────────────────
+  // Lets a user change their own email. The session stays valid; we refresh
+  // the in-memory user so the UI reflects the new email immediately.
+  const updateEmail = useCallback(async (newEmail) => {
+    const data = await apiRequest("/auth/email", { method: "PATCH", body: { email: newEmail } });
+    setUser((prev) => (prev && data?.user ? { ...prev, email: data.user.email } : prev));
+    return data;
+  }, []);
+
+  // ── Change own password ──────────────────────────────────────────────────
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    return apiRequest("/auth/change-password", {
+      method: "POST",
+      body: { currentPassword, newPassword },
+    });
   }, []);
 
   const isAuthenticated = user !== null;
 
   return (
-    <AuthContext.Provider value={{ user, login, register, verifyEmail, resendVerification, logout, loading, isAuthenticated }}>
+    <AuthContext.Provider
+      value={{ user, login, register, verifyEmail, resendVerification, forgotPassword, resetPassword, logout, updateEmail, changePassword, loading, isAuthenticated }}
+    >
       {children}
     </AuthContext.Provider>
   );

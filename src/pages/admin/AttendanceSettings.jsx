@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from "react";
-import { CalendarDays, CalendarPlus, Clock, Info, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarDays, CalendarPlus, Clock, Info, Plus, Trash2 } from "lucide-react";
 import { Card, CardHeader } from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
@@ -8,11 +8,11 @@ import EmptyState from "../../components/ui/EmptyState";
 import TimePicker from "../../components/ui/TimePicker";
 import Badge from "../../components/ui/Badge";
 import Skeleton from "../../components/ui/Skeleton";
-import { ATTENDANCE_SETTINGS, MOCK_CURRENT_DATE } from "../../lib/mockData";
+import { apiRequest } from "../../lib/api";
 import { formatDate, formatTime } from "../../lib/format";
-import { getDateError } from "../../lib/dateUtils";
+import { getDateError, todayISODate } from "../../lib/dateUtils";
 
-const EMPTY_FORM = { id: null, date: "", deadline: "22:00", reason: "" };
+const EMPTY_FORM = { date: "", deadline: "22:00", reason: "" };
 
 function SettingsSkeleton() {
   return (
@@ -25,28 +25,61 @@ function SettingsSkeleton() {
 }
 
 export default function AttendanceSettings() {
-  const [recurringEnabled, setRecurringEnabled] = useState(ATTENDANCE_SETTINGS.recurringEnabled);
-  const [recurringDeadline, setRecurringDeadline] = useState(ATTENDANCE_SETTINGS.recurringDeadline);
-  const [overrides, setOverrides] = useState(() =>
-    [...ATTENDANCE_SETTINGS.specialDeadlines].sort((a, b) => a.date.localeCompare(b.date)),
-  );
+  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [recurringDeadline, setRecurringDeadline] = useState("22:00");
+  const [overrides, setOverrides] = useState([]);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
+  const [btnError, setBtnError] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const today = todayISODate();
+  const todayOverride = overrides.find((o) => o.date === today);
+
   useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 400);
-    return () => clearTimeout(id);
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await apiRequest("/settings/attendance");
+        if (cancelled) return;
+        setRecurringEnabled(data.settings.recurringEnabled);
+        setRecurringDeadline(data.settings.recurringDeadline);
+        setOverrides([...(data.settings.specialDeadlines ?? [])]);
+      } catch {
+        /* settings load failure — leave defaults */
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
-  const sortedOverrides = useMemo(() => [...overrides].sort((a, b) => a.date.localeCompare(b.date)), [overrides]);
+  function markDirty() {
+    setBtnError("");
+    setDirty(true);
+  }
 
-  // Determine what deadline applies today
-  const todayOverride = useMemo(
-    () => overrides.find((o) => o.date === MOCK_CURRENT_DATE),
-    [overrides],
-  );
+  async function saveRecurring() {
+    setSaving(true);
+    setBtnError("");
+    try {
+      const data = await apiRequest("/settings/attendance", {
+        method: "PATCH",
+        body: { recurringEnabled, recurringDeadline },
+      });
+      setRecurringEnabled(data.settings.recurringEnabled);
+      setRecurringDeadline(data.settings.recurringDeadline);
+      setDirty(false);
+    } catch (err) {
+      setBtnError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function openAdd() {
     setForm(EMPTY_FORM);
@@ -54,36 +87,36 @@ export default function AttendanceSettings() {
     setModalOpen(true);
   }
 
-  function openEdit(override) {
-    setForm({ id: override.id, date: override.date, deadline: override.deadline, reason: override.reason ?? "" });
-    setFormError("");
-    setModalOpen(true);
-  }
-
-  function handleSaveOverride() {
+  async function handleSaveOverride() {
     const dateProblem = getDateError(form.date, { required: true });
     if (dateProblem) {
       setFormError(dateProblem);
       return;
     }
-    const duplicate = overrides.some((o) => o.date === form.date && o.id !== form.id);
-    if (duplicate) {
-      setFormError("An override already exists for this date. Edit it instead.");
-      return;
+    try {
+      const data = await apiRequest("/settings/attendance/special-deadlines", {
+        method: "POST",
+        body: { date: form.date, deadline: form.deadline, reason: form.reason.trim() || undefined },
+      });
+      setOverrides(data.settings.specialDeadlines);
+      setModalOpen(false);
+    } catch (err) {
+      setFormError(err.message);
     }
-    setOverrides((prev) =>
-      form.id
-        ? prev.map((o) => (o.id === form.id ? { ...o, date: form.date, deadline: form.deadline, reason: form.reason.trim() } : o))
-        : [...prev, { id: `sd-${Date.now()}`, date: form.date, deadline: form.deadline, reason: form.reason.trim() }],
-    );
-    setModalOpen(false);
   }
 
-  function removeOverride(id) {
-    setOverrides((prev) => prev.filter((o) => o.id !== id));
+  async function removeOverride(id) {
+    try {
+      const data = await apiRequest(`/settings/attendance/special-deadlines/${id}`, { method: "DELETE" });
+      setOverrides(data.settings.specialDeadlines);
+    } catch (err) {
+      setBtnError(err.message);
+    }
   }
 
   if (loading) return <SettingsSkeleton />;
+
+  const sortedOverrides = [...overrides].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -113,6 +146,10 @@ export default function AttendanceSettings() {
         )}
       </div>
 
+      {btnError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-[13px] text-red-600">{btnError}</div>
+      )}
+
       {/* ── Info banners ────────────────────────────────────────── */}
       <div className="flex items-start gap-2 rounded-lg border border-steel-200/60 bg-white px-4 py-3 text-[13px] text-steel-600 shadow-xs">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
@@ -125,27 +162,26 @@ export default function AttendanceSettings() {
       <div className="flex items-start gap-2 rounded-lg border border-steel-200/60 bg-steel-50 px-4 py-3 text-[13px] text-steel-600">
         <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-steel-400" />
         <p>
-          <span className="font-medium text-steel-700">Weekend policy:</span>{" "}
-          Submissions are closed on Saturdays &amp; Sundays. All internees are automatically marked <Badge status="off" />{" "}
-          on weekends. No deadline override is needed.
+          <span className="font-medium text-steel-700">Weekend policy:</span> Submissions are closed on Saturdays &amp;
+          Sundays. All internees are automatically marked <Badge status="off" /> on weekends. No deadline override is
+          needed.
         </p>
       </div>
 
       {/* ── Section 1: Daily Deadline ───────────────────────────── */}
       <Card>
-        <CardHeader
-          title="Daily deadline"
-          subtitle="Standard submission time applied every working day"
-        />
+        <CardHeader title="Daily deadline" subtitle="Standard submission time applied every working day" />
 
-        {/* Toggle */}
         <div className="flex items-start justify-between gap-4 rounded-lg border border-steel-100 bg-steel-50/50 px-4 py-3">
           <label htmlFor="same-time-everyday" className="flex cursor-pointer items-start gap-3">
             <input
               id="same-time-everyday"
               type="checkbox"
               checked={recurringEnabled}
-              onChange={(e) => setRecurringEnabled(e.target.checked)}
+              onChange={(e) => {
+                setRecurringEnabled(e.target.checked);
+                markDirty();
+              }}
               className="mt-0.5 h-4 w-4 rounded border-steel-300 accent-brand-600"
             />
             <span>
@@ -158,17 +194,21 @@ export default function AttendanceSettings() {
             </span>
           </label>
           <div className="shrink-0 text-right">
-            <p className="font-display text-2xl font-bold leading-none text-brand-700">
-              {formatTime(recurringDeadline)}
-            </p>
+            <p className="font-display text-2xl font-bold leading-none text-brand-700">{formatTime(recurringDeadline)}</p>
             <p className="mt-1 text-[12px] text-steel-400">Daily deadline</p>
           </div>
         </div>
 
-        {/* Time picker */}
         <div className="mt-4 max-w-sm">
           <p className="mb-1.5 block text-[13px] font-medium text-steel-700">Deadline time</p>
-          <TimePicker value={recurringDeadline} disabled={!recurringEnabled} onChange={setRecurringDeadline} />
+          <TimePicker
+            value={recurringDeadline}
+            disabled={!recurringEnabled}
+            onChange={(deadline) => {
+              setRecurringDeadline(deadline);
+              markDirty();
+            }}
+          />
         </div>
 
         {!recurringEnabled && (
@@ -177,6 +217,16 @@ export default function AttendanceSettings() {
             Internees will not receive an automatic daily deadline while this is off.
           </div>
         )}
+
+        <div className="mt-4 flex items-center justify-end gap-2 border-t border-steel-100 pt-4">
+          <span className="mr-auto text-[12px] text-steel-400">{dirty ? "Unsaved changes" : "All changes saved"}</span>
+          <Button variant="secondary" disabled={!dirty || saving} onClick={() => setDirty(false)}>
+            Discard
+          </Button>
+          <Button loading={saving} disabled={!dirty} onClick={saveRecurring}>
+            Save deadline
+          </Button>
+        </div>
       </Card>
 
       {/* ── Section 2: Special Date Overrides ───────────────────── */}
@@ -196,7 +246,7 @@ export default function AttendanceSettings() {
           {sortedOverrides.length > 0 ? (
             <ul className="space-y-2">
               {sortedOverrides.map((o) => {
-                const isToday = o.date === MOCK_CURRENT_DATE;
+                const isToday = o.date === today;
                 return (
                   <li
                     key={o.id}
@@ -236,9 +286,6 @@ export default function AttendanceSettings() {
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <Button variant="ghost" size="sm" icon={Pencil} onClick={() => openEdit(o)}>
-                        Edit
-                      </Button>
                       <Button
                         variant="danger"
                         size="sm"
@@ -268,14 +315,8 @@ export default function AttendanceSettings() {
         </div>
       </Card>
 
-      <p className="text-[12px] text-steel-400">UI mock — changes are kept in memory and reset on refresh.</p>
-
-      {/* ── Add / Edit Override Modal ───────────────────────────── */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={form.id ? "Edit special override" : "Add special override"}
-      >
+      {/* ── Add Override Modal ──────────────────────────────────── */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add special override">
         <div className="space-y-4">
           <Input
             label="Date"
@@ -303,7 +344,7 @@ export default function AttendanceSettings() {
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveOverride}>{form.id ? "Save changes" : "Add override"}</Button>
+            <Button onClick={handleSaveOverride}>Add override</Button>
           </div>
         </div>
       </Modal>
