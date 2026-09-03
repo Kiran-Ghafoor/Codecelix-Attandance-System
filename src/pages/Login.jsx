@@ -204,6 +204,7 @@ export default function Login() {
               <Input
                 label="Email"
                 type="email"
+                name="email"
                 icon={Mail}
                 placeholder="you@codecelix.com"
                 value={email}
@@ -213,6 +214,7 @@ export default function Login() {
               <Input
                 label="Password"
                 type="password"
+                name="password"
                 icon={Lock}
                 placeholder="••••••••"
                 value={password}

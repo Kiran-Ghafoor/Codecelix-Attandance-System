@@ -81,6 +81,7 @@ export default function ForgotPassword() {
               <Input
                 label="Email"
                 type="email"
+                name="email"
                 icon={Mail}
                 placeholder="you@codecelix.com"
                 value={email}

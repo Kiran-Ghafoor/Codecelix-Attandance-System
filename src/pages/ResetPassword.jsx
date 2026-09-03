@@ -117,6 +117,7 @@ export default function ResetPassword() {
               <Input
                 label="New password"
                 type="password"
+                name="password"
                 icon={Lock}
                 placeholder="At least 6 characters"
                 value={password}
@@ -126,6 +127,7 @@ export default function ResetPassword() {
               <Input
                 label="Confirm new password"
                 type="password"
+                name="confirmPassword"
                 icon={Lock}
                 placeholder="Repeat your new password"
                 value={confirmPassword}
