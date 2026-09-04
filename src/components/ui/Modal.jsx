@@ -15,7 +15,7 @@ export default function Modal({ open, onClose, title, children, footer, size = "
   const sizes = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg", xl: "max-w-2xl" };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-steel-900/40 backdrop-blur-[2px]"
         onClick={onClose}
@@ -24,20 +24,21 @@ export default function Modal({ open, onClose, title, children, footer, size = "
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative flex max-h-[calc(100dvh-2rem)] w-full flex-col ${sizes[size]} rounded-2xl border border-steel-200/60 bg-white shadow-popover animate-fade-in`}
+        className={`relative flex max-h-[100dvh] w-full flex-col sm:max-h-[calc(100dvh-2rem)] ${sizes[size]}
+          rounded-t-2xl border border-steel-200/60 bg-white shadow-popover animate-slide-up sm:rounded-2xl`}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-steel-100 px-6 py-4">
-          <h3 className="font-display text-[15px] font-bold text-steel-900">{title}</h3>
+        <div className="flex shrink-0 items-center justify-between border-b border-steel-100 px-5 py-4 sm:px-6">
+          <h3 className="min-w-0 font-display text-[15px] font-bold text-steel-900">{title}</h3>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-steel-400 transition-colors hover:bg-steel-100 hover:text-steel-600"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-steel-400 transition-colors hover:bg-steel-100 hover:text-steel-600"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="overflow-y-auto px-6 py-5">{children}</div>
-        {footer && <div className="flex shrink-0 justify-end gap-2 border-t border-steel-100 px-6 py-4">{footer}</div>}
+        <div className="overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
+        {footer && <div className="flex shrink-0 justify-end gap-2 border-t border-steel-100 px-5 py-4 sm:px-6">{footer}</div>}
       </div>
     </div>
   );

@@ -61,11 +61,11 @@ export default function Sidebar({ role, mobileOpen, onCloseMobile }) {
             <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.24em] text-brand-600">System</span>
           </div>
           <button
-            className="ml-auto rounded-lg p-1.5 text-steel-400 transition-colors hover:bg-steel-100 hover:text-steel-600 lg:hidden"
+            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-steel-400 transition-colors hover:bg-steel-100 hover:text-steel-600 lg:hidden"
             onClick={onCloseMobile}
             aria-label="Close menu"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -81,7 +81,7 @@ export default function Sidebar({ role, mobileOpen, onCloseMobile }) {
                 to={to}
                 onClick={onCloseMobile}
                 className={({ isActive }) =>
-                  `group flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-all duration-150 ${
+                  `group flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 ${
                     isActive
                       ? "bg-brand-50 text-brand-700 shadow-[inset_3px_0_0_0_theme('colors.brand.600')]"
                       : "text-steel-500 hover:bg-steel-50 hover:text-steel-800"

@@ -79,7 +79,7 @@ export default function InterneeDashboard() {
             subtitle="Submit your task daily before the deadline to be marked present."
           />
           {isClosedForWeekend ? (
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-steel-100">
                   <CalendarClock className="h-6 w-6 text-steel-400" />
@@ -96,7 +96,7 @@ export default function InterneeDashboard() {
               <Badge status="off" />
             </div>
           ) : currentTask?.status === "submitted" ? (
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-50">
                   <CheckCircle2 className="h-6 w-6 text-green-600" />

@@ -44,8 +44,8 @@ export default function ActivityLog() {
         ) : logs.length > 0 ? (
           <ul className="divide-y divide-steel-100/80">
             {logs.map((log) => (
-              <li key={log.id} className="flex items-start justify-between gap-4 py-3">
-                <div>
+              <li key={log.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="min-w-0">
                   <p className="text-[13px] text-steel-800">{log.action}</p>
                   <p className="mt-0.5 text-[12px] text-steel-400">{log.actor}</p>
                 </div>

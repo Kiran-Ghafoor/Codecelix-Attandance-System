@@ -172,7 +172,7 @@ export default function AttendanceSettings() {
       <Card>
         <CardHeader title="Daily deadline" subtitle="Standard submission time applied every working day" />
 
-        <div className="flex items-start justify-between gap-4 rounded-lg border border-steel-100 bg-steel-50/50 px-4 py-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-steel-100 bg-steel-50/50 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <label htmlFor="same-time-everyday" className="flex cursor-pointer items-start gap-3">
             <input
               id="same-time-everyday"
@@ -193,7 +193,7 @@ export default function AttendanceSettings() {
               </span>
             </span>
           </label>
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 sm:text-right">
             <p className="font-display text-2xl font-bold leading-none text-brand-700">{formatTime(recurringDeadline)}</p>
             <p className="mt-1 text-[12px] text-steel-400">Daily deadline</p>
           </div>
@@ -250,7 +250,7 @@ export default function AttendanceSettings() {
                 return (
                   <li
                     key={o.id}
-                    className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors ${
+                    className={`flex flex-col gap-3 rounded-lg border px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between ${
                       isToday
                         ? "border-brand-200/60 bg-brand-50/50 hover:bg-brand-50/80"
                         : "border-steel-100 bg-steel-50/40 hover:bg-steel-50/70"
@@ -267,17 +267,17 @@ export default function AttendanceSettings() {
                         <CalendarDays className="h-5 w-5" />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-steel-800">
-                          {formatDate(o.date)}
+                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] font-medium text-steel-800">
+                          <span>{formatDate(o.date)}</span>
                           {isToday && (
-                            <span className="ml-2 inline-flex items-center rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
+                            <span className="inline-flex items-center rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">
                               TODAY
                             </span>
                           )}
-                          <span className="mx-1.5 text-steel-300">·</span>
+                          <span className="text-steel-300">·</span>
                           <span className="text-brand-700">{formatTime(o.deadline)}</span>
                           {recurringEnabled && (
-                            <span className="ml-1.5 text-[12px] font-normal text-steel-400">
+                            <span className="text-[12px] font-normal text-steel-400">
                               (instead of {formatTime(recurringDeadline)})
                             </span>
                           )}
@@ -285,13 +285,14 @@ export default function AttendanceSettings() {
                         {o.reason && <p className="mt-0.5 truncate text-[12px] text-steel-500">{o.reason}</p>}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="flex shrink-0 items-center gap-1.5 sm:self-center">
                       <Button
                         variant="danger"
                         size="sm"
                         icon={Trash2}
                         onClick={() => removeOverride(o.id)}
                         aria-label={`Remove override for ${formatDate(o.date)}`}
+                        className="w-full sm:w-auto"
                       >
                         Delete
                       </Button>

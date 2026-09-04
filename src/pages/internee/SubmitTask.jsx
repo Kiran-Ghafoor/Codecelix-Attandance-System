@@ -302,7 +302,7 @@ export default function SubmitTask() {
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-steel-200 bg-steel-50 px-4 py-3">
+              <div className="flex flex-col gap-3 rounded-lg border border-steel-200 bg-steel-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50">
                     <FileText className="h-5 w-5 text-red-500" />
