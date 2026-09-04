@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Download, ExternalLink, Eye, FileText, GitBranch } from "lucide-react";
 import { Card, CardHeader } from "../ui/Card";
 import Avatar from "../ui/Avatar";
@@ -209,13 +209,21 @@ function humanFileSize(bytes) {
 }
 
 function BackLink({ to, label }) {
+  const navigate = useNavigate();
+  // Use browser history when it exists (back arrow on every page); otherwise
+  // fall back to the explicit route the view was opened from.
+  const handleBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate(to);
+  };
   return (
-    <Link
-      to={to}
-      className="inline-flex items-center gap-1.5 text-[13px] font-medium text-steel-500 transition-colors hover:text-brand-700"
+    <button
+      type="button"
+      onClick={handleBack}
+      className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-medium text-steel-500 transition-colors hover:text-brand-700"
     >
       <ArrowLeft className="h-3.5 w-3.5" /> {label}
-    </Link>
+    </button>
   );
 }
 
