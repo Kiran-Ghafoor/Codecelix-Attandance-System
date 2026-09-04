@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, LogOut, ChevronDown, Bell } from "lucide-react";
+import { Menu, LogOut, ChevronDown, Bell, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +22,13 @@ export default function Header({ title, onOpenMobile }) {
           aria-label="Open menu"
         >
           <Menu className="h-5 w-5" />
+        </button>
+        <button
+          className="rounded-lg p-1.5 text-steel-500 transition-colors hover:bg-steel-100 hover:text-steel-700"
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="font-display text-[15px] font-semibold text-steel-900">{title}</h1>
       </div>

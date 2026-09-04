@@ -134,6 +134,7 @@ export default function SubmitTask() {
         const res = await fetch(`${API_BASE_URL}/submissions`, {
           method: "POST",
           credentials: "include",
+          headers: { "X-Timezone-Offset": String(-new Date().getTimezoneOffset()) },
           body: formData,
         });
         data = await res.json().catch(() => ({}));

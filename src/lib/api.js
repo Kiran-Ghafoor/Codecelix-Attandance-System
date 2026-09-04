@@ -22,6 +22,11 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export const API_BASE_URL = BASE_URL;
 
+/** Browser's timezone offset from UTC in minutes (negative = east of UTC). */
+function getTimezoneOffset() {
+  return -new Date().getTimezoneOffset();
+}
+
 export class ApiError extends Error {
   constructor(status, message, code) {
     super(message);
@@ -41,6 +46,7 @@ export async function apiRequest(endpoint, { method = "GET", body, headers = {} 
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      "X-Timezone-Offset": String(getTimezoneOffset()),
       ...headers,
     },
   };
@@ -66,7 +72,10 @@ export async function apiRequest(endpoint, { method = "GET", body, headers = {} 
  * client-side.
  */
 export async function apiDownload(endpoint) {
-  const res = await fetch(`${BASE_URL}${endpoint}`, { credentials: "include" });
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    credentials: "include",
+    headers: { "X-Timezone-Offset": String(getTimezoneOffset()) },
+  });
   if (!res.ok) {
     let message = `Download failed (${res.status})`;
     try {

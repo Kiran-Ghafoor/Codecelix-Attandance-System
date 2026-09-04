@@ -18,6 +18,7 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState("");
+  const [devLink, setDevLink] = useState("");
 
   const { forgotPassword } = useAuth();
 
@@ -35,6 +36,7 @@ export default function ForgotPassword() {
     try {
       const data = await forgotPassword(email.trim().toLowerCase());
       setSent(data.message || "If an account exists for that email, a reset link has been sent.");
+      if (data.devLink) setDevLink(data.devLink);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message || "Failed to send reset link. Please try again.");
@@ -59,8 +61,20 @@ export default function ForgotPassword() {
             <div className="space-y-4 text-center">
               <div className="rounded-xl bg-emerald-50 p-4">
                 <MailCheck className="mx-auto mb-2 h-8 w-8 text-emerald-500" />
-                <p className="text-[13px] font-medium text-steel-900">Check your inbox</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-steel-600">{sent}</p>
+                <p className="text-[13px] font-medium text-steel-900">Reset link ready</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-steel-600">
+                  {devLink
+                    ? "Email delivery is not configured, so here is your direct reset link:"
+                    : sent}
+                </p>
+                {devLink && (
+                  <a
+                    href={devLink}
+                    className="mt-3 inline-block break-all rounded-lg bg-brand-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-brand-700"
+                  >
+                    Reset my password
+                  </a>
+                )}
               </div>
               <Link
                 to="/login"
